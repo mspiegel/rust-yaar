@@ -1,0 +1,6 @@
+[package]
+name = "etz"
+version = "0.1.0"
+authors = ["Michael Spiegel <michael.m.spiegel@gmail.com>"]
+
+[dependencies]
