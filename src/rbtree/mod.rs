@@ -7,24 +7,25 @@ enum Color {
     Black,
 }
 
-pub struct RBTree {
-    root: Link,
-}
+type Link = Box<Node>;
+type LinkOrEmpty = Option<Link>;
 
-struct Link(Option<Box<Node>>);
+pub struct RBTree {
+    root: LinkOrEmpty,
+}
 
 struct Node {
     key: i32,
     val: i32,
     color: Color,
-    left: Link,
-    right: Link,
+    left: LinkOrEmpty,
+    right: LinkOrEmpty,
 }
 
 impl RBTree {
 
     pub fn new() -> Self {
-        RBTree { root: Link(None) }
+        RBTree { root: None }
     }
 
     pub fn get(&self, key: i32) -> Option<i32> {
@@ -33,16 +34,15 @@ impl RBTree {
 
     pub fn insert(&mut self, key: i32, value: i32) -> Option<i32> {
         let prev = self.root.insert(key, value);
-        let Link(ref mut node) = self.root;
-        node.as_mut().unwrap().color = Color::Black;
+        self.root.as_mut().unwrap().color = Color::Black;
         prev
     }
+
 }
 
-fn new_leaf(key: i32, val: i32) -> Option<Box<Node>> {
+fn new_leaf(key: i32, val: i32) -> LinkOrEmpty {
     Some(Box::new(Node::new(key, val)))
 }
-
 
 impl Node {
 
@@ -51,39 +51,48 @@ impl Node {
             key: key,
             val: val,
             color: Color::Red,
-            left: Link(None),
-            right: Link(None),
+            left: None,
+            right: None,
         }
+    }
+
+}
+
+trait BoxNode {
+    fn left_rotate(&mut self) -> ();
+}
+
+impl BoxNode for Link {
+
+    fn left_rotate(&mut self) -> () {
+        let mut y = self.right.take().unwrap();
+        mem::swap(&mut self.right, &mut y.left);
+        mem::swap(self, &mut y.left.take().unwrap());
     }
 }
 
-impl Link {
+trait PtrNode {
+    fn get(&self, key: i32) -> Option<i32>;
+    fn insert(&mut self, key: i32, val: i32) -> Option<i32>;
+}
 
-    fn is_red(&self) -> bool {
-        let Link(ref node_option) = *self;
-        match *node_option {
-            None => false,
-            Some(ref node) => node.color == Color::Red,
-        }
-    }
+impl PtrNode for LinkOrEmpty {
 
     fn get(&self, key: i32) -> Option<i32> {
-        let Link(ref node_option) = *self;
-        match *node_option {
+        match *self {
             None => None,
             Some(ref node) => match key.cmp(&node.key) {
                 Ordering::Equal => Some(node.val),
                 Ordering::Less => node.left.get(key),
-                Ordering::Greater => node.right.get(key),
+                Ordering::Greater => node.right.get(key)
             }
         }
     }
 
     fn insert(&mut self, key: i32, value: i32) -> Option<i32> {
-        let Link(ref mut node_option) = *self;
-        match *node_option {
+        match *self {
             None => {
-                *node_option = new_leaf(key, value);
+                *self = new_leaf(key, value);
                 None
             },
             Some(ref mut node) => {
@@ -99,6 +108,7 @@ impl Link {
             }
         }
     }
+
 }
 
 #[test]
@@ -108,4 +118,4 @@ fn basic_construction() {
     assert_eq!(tree.insert(0, 1), None);
     assert_eq!(tree.insert(0, 2), Some(1));
     assert_eq!(tree.get(0), Some(2));
-}
+ }
