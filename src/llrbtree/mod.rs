@@ -167,18 +167,20 @@ impl BoxNode for Box<Node> {
     }
 
     fn flip_colors(&mut self) {
-        debug_assert!(!self.is_red());
-        debug_assert!(self.left.is_red());
-        debug_assert!(self.right.is_red());
-        self.color = Color::Red;
-        self.left.mutate().color = Color::Black;
-        self.right.mutate().color = Color::Black;
+        debug_assert!(self.left.is_some());
+        debug_assert!(self.right.is_some());
+        debug_assert!(self.color != self.left.color());
+        debug_assert!(self.color != self.right.color());
+        self.color.flip();
+        self.left.mutate().color.flip();
+        self.right.mutate().color.flip();
     }
 }
 
 trait OptionBoxNode {
     fn get(&self, key: i32) -> Option<i32>;
     fn is_red(&self) -> bool;
+    fn color(&self) -> Color;
     fn insert(&mut self, key: i32, val: i32) -> Option<i32>;
     fn reference(&mut self) -> &Box<Node>;
     fn mutate(&mut self) -> &mut Box<Node>;
@@ -206,6 +208,10 @@ impl OptionBoxNode for Option<Box<Node>> {
             None => false,
             Some(ref node) => node.is_red(),
         }
+    }
+
+    fn color(&self) -> Color {
+        self.as_ref().unwrap().color
     }
 
     fn insert(&mut self, key: i32, value: i32) -> Option<i32> {
@@ -320,6 +326,15 @@ impl<'a> fmt::Debug for Link<'a> {
                        Link(&node.left),
                        Link(&node.right))
             }
+        }
+    }
+}
+
+impl Color {
+    fn flip(&mut self) {
+        match *self {
+            Color::Red => *self = Color::Black,
+            Color::Black => *self = Color::Red,
         }
     }
 }
