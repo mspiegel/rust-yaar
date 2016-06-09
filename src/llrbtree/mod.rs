@@ -59,7 +59,6 @@ struct Node {
 }
 
 impl LLRBTree {
-
     pub fn new() -> Self {
         LLRBTree { root: None }
     }
@@ -73,23 +72,21 @@ impl LLRBTree {
         self.root.mutate().color = Color::Black;
         prev
     }
-
 }
 
 impl fmt::Display for LLRBTree {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-         write!(f, "{}", Link(&self.root))
-     }
+        write!(f, "{}", Link(&self.root))
+    }
 }
 
 impl fmt::Debug for LLRBTree {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-         write!(f, "{:?}", Link(&self.root))
-     }
+        write!(f, "{:?}", Link(&self.root))
+    }
 }
 
 impl Node {
-
     fn new(key: i32, val: i32) -> Self {
         Node {
             key: key,
@@ -99,7 +96,6 @@ impl Node {
             right: None,
         }
     }
-
 }
 
 trait BoxNode {
@@ -109,7 +105,6 @@ trait BoxNode {
 }
 
 impl BoxNode for Box<Node> {
-
     fn left_rotate(&mut self) {
         debug_assert!(self.right.is_red());
         let mut child = self.right.take().unwrap();
@@ -144,19 +139,20 @@ trait OptionBoxNode {
     fn get(&self, key: i32) -> Option<i32>;
     fn is_red(&self) -> bool;
     fn insert(&mut self, key: i32, val: i32) -> Option<i32>;
-    fn reference(&mut self) -> & Box<Node>;
+    fn reference(&mut self) -> &Box<Node>;
     fn mutate(&mut self) -> &mut Box<Node>;
 }
 
 impl OptionBoxNode for Option<Box<Node>> {
-
     fn get(&self, key: i32) -> Option<i32> {
         match *self {
             None => None,
-            Some(ref node) => match key.cmp(&node.key) {
-                Ordering::Equal => Some(node.val),
-                Ordering::Less => node.left.get(key),
-                Ordering::Greater => node.right.get(key)
+            Some(ref node) => {
+                match key.cmp(&node.key) {
+                    Ordering::Equal => Some(node.val),
+                    Ordering::Less => node.left.get(key),
+                    Ordering::Greater => node.right.get(key),
+                }
             }
         }
     }
@@ -164,7 +160,7 @@ impl OptionBoxNode for Option<Box<Node>> {
     fn is_red(&self) -> bool {
         match *self {
             None => false,
-            Some(ref node) => (node.color == Color::Red)
+            Some(ref node) => (node.color == Color::Red),
         }
     }
 
@@ -173,14 +169,14 @@ impl OptionBoxNode for Option<Box<Node>> {
             None => {
                 *self = new_leaf(key, value);
                 None
-            },
+            }
             Some(ref mut node) => {
                 match key.cmp(&node.key) {
                     Ordering::Equal => {
                         let prev = node.val;
                         node.val = value;
                         Some(prev)
-                    },
+                    }
                     Ordering::Less => node.left.insert(key, value),
                     Ordering::Greater => node.right.insert(key, value),
                 }
@@ -194,19 +190,18 @@ impl OptionBoxNode for Option<Box<Node>> {
             node.right_rotate();
         }
         if node.left.is_red() && node.right.is_red() {
-             node.flip_colors();
+            node.flip_colors();
         }
         prev
     }
 
-    fn reference(&mut self) -> & Box<Node> {
+    fn reference(&mut self) -> &Box<Node> {
         self.as_ref().unwrap()
     }
 
     fn mutate(&mut self) -> &mut Box<Node> {
         self.as_mut().unwrap()
     }
-
 }
 
 impl<'a> fmt::Display for Link<'a> {
@@ -214,8 +209,13 @@ impl<'a> fmt::Display for Link<'a> {
         let Link(ref link) = *self;
         match *link {
             &None => write!(f, "nil"),
-            &Some(ref node) => write!(f, "({} {} {})",
-                node.key, Link(&node.left), Link(&node.right))
+            &Some(ref node) => {
+                write!(f,
+                       "({} {} {})",
+                       node.key,
+                       Link(&node.left),
+                       Link(&node.right))
+            }
         }
     }
 }
@@ -225,9 +225,15 @@ impl<'a> fmt::Debug for Link<'a> {
         let Link(ref link) = *self;
         match *link {
             &None => write!(f, "nil"),
-            &Some(ref node) => write!(f, "({},{},{} {:?} {:?})",
-                node.key, node.val, node.color,
-                Link(&node.left), Link(&node.right))
+            &Some(ref node) => {
+                write!(f,
+                       "({},{},{} {:?} {:?})",
+                       node.key,
+                       node.val,
+                       node.color,
+                       Link(&node.left),
+                       Link(&node.right))
+            }
         }
     }
 }
@@ -236,7 +242,7 @@ impl fmt::Display for Color {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Color::Red => write!(f, "red"),
-            Color::Black => write!(f, "black")
+            Color::Black => write!(f, "black"),
         }
     }
 }
