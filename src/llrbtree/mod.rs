@@ -35,7 +35,6 @@
 
 use std::cmp::Ordering;
 use std::fmt;
-use std::i32;
 use std::mem;
 
 #[derive(PartialEq, Eq, Copy, Clone)]
@@ -78,7 +77,7 @@ impl LLRBTree {
     }
 
     fn is_bst(&self) -> bool {
-        self.root.is_bst(i32::MIN, i32::MAX)
+        self.root.is_bst(None, None)
     }
 
     fn is_23(&self) -> bool {
@@ -184,7 +183,7 @@ trait OptionBoxNode {
     fn insert(&mut self, key: i32, val: i32) -> Option<i32>;
     fn reference(&mut self) -> &Box<Node>;
     fn mutate(&mut self) -> &mut Box<Node>;
-    fn is_bst(&self, min: i32, max: i32) -> bool;
+    fn is_bst(&self, min: Option<i32>, max: Option<i32>) -> bool;
     fn is_23(&self, root: bool) -> bool;
     fn is_balanced(&self, black: i32) -> bool;
 }
@@ -253,17 +252,17 @@ impl OptionBoxNode for Option<Box<Node>> {
         self.as_mut().unwrap()
     }
 
-    fn is_bst(&self, min: i32, max: i32) -> bool {
+    fn is_bst(&self, min: Option<i32>, max: Option<i32>) -> bool {
         match *self {
             None => true,
             Some(ref node) => {
-                if node.key.cmp(&min) != Ordering::Greater {
+                if min.is_some() && node.key.cmp(&min.unwrap()) != Ordering::Greater {
                     return false;
                 }
-                if node.key.cmp(&max) != Ordering::Less {
+                if max.is_some() && node.key.cmp(&max.unwrap()) != Ordering::Less {
                     return false;
                 }
-                node.left.is_bst(min, node.key) && node.right.is_bst(node.key, max)
+                node.left.is_bst(min, Some(node.key)) && node.right.is_bst(Some(node.key), max)
             }
         }
     }
