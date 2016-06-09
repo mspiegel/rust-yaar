@@ -2,6 +2,8 @@
 //! that are isomorphic to 2-3 trees. This implementation
 //! borrows heavily from https://www.cs.princeton.edu/~rs/talks/LLRB/LLRB.pdf
 //! and https://github.com/rcatolino/rbtree-rust.
+//! Debug assertions borrow heavily from the implementations
+//! at http://algs4.cs.princeton.edu/33balanced.
 
 // I have spent a lot of hours trying all possible ways to
 // implement this data structure. Most of the attemps
@@ -33,6 +35,7 @@
 
 use std::cmp::Ordering;
 use std::fmt;
+use std::i32;
 use std::mem;
 
 #[derive(PartialEq, Eq, Copy, Clone)]
@@ -70,7 +73,40 @@ impl LLRBTree {
     pub fn insert(&mut self, key: i32, value: i32) -> Option<i32> {
         let prev = self.root.insert(key, value);
         self.root.mutate().color = Color::Black;
+        debug_assert!(self.check());
         prev
+    }
+
+    fn is_bst(&self) -> bool {
+        self.root.is_bst(i32::MIN, i32::MAX)
+    }
+
+    fn is_23(&self) -> bool {
+        self.root.is_23(true)
+    }
+
+    fn is_balanced(&self) -> bool {
+        let mut black = 0;
+        let mut next = &self.root;
+        loop {
+            match next {
+                &None => break,
+                &Some(ref node) => {
+                    if !node.is_red() {
+                        black += 1;
+                    }
+                    next = &node.left;
+                }
+            }
+        }
+        self.root.is_balanced(black)
+    }
+
+    fn check(&self) -> bool {
+        debug_assert!(self.is_bst(), "Not a binary search tree");
+        debug_assert!(self.is_23(), "Not a 2-3 tree");
+        debug_assert!(self.is_balanced(), "Not balanced");
+        true
     }
 }
 
@@ -99,12 +135,17 @@ impl Node {
 }
 
 trait BoxNode {
+    fn is_red(&self) -> bool;
     fn left_rotate(&mut self);
     fn right_rotate(&mut self);
     fn flip_colors(&mut self);
 }
 
 impl BoxNode for Box<Node> {
+    fn is_red(&self) -> bool {
+        self.color == Color::Red
+    }
+
     fn left_rotate(&mut self) {
         debug_assert!(self.right.is_red());
         let mut child = self.right.take().unwrap();
@@ -126,7 +167,7 @@ impl BoxNode for Box<Node> {
     }
 
     fn flip_colors(&mut self) {
-        debug_assert!(self.color == Color::Black);
+        debug_assert!(!self.is_red());
         debug_assert!(self.left.is_red());
         debug_assert!(self.right.is_red());
         self.color = Color::Red;
@@ -141,6 +182,9 @@ trait OptionBoxNode {
     fn insert(&mut self, key: i32, val: i32) -> Option<i32>;
     fn reference(&mut self) -> &Box<Node>;
     fn mutate(&mut self) -> &mut Box<Node>;
+    fn is_bst(&self, min: i32, max: i32) -> bool;
+    fn is_23(&self, root: bool) -> bool;
+    fn is_balanced(&self, black: i32) -> bool;
 }
 
 impl OptionBoxNode for Option<Box<Node>> {
@@ -160,7 +204,7 @@ impl OptionBoxNode for Option<Box<Node>> {
     fn is_red(&self) -> bool {
         match *self {
             None => false,
-            Some(ref node) => (node.color == Color::Red),
+            Some(ref node) => node.is_red(),
         }
     }
 
@@ -201,6 +245,48 @@ impl OptionBoxNode for Option<Box<Node>> {
 
     fn mutate(&mut self) -> &mut Box<Node> {
         self.as_mut().unwrap()
+    }
+
+    fn is_bst(&self, min: i32, max: i32) -> bool {
+        match *self {
+            None => true,
+            Some(ref node) => {
+                if node.key.cmp(&min) != Ordering::Greater {
+                    return false;
+                }
+                if node.key.cmp(&max) != Ordering::Less {
+                    return false;
+                }
+                node.left.is_bst(min, node.key) && node.right.is_bst(node.key, max)
+            }
+        }
+    }
+
+    fn is_23(&self, root: bool) -> bool {
+        match *self {
+            None => true,
+            Some(ref node) => {
+                if node.right.is_red() {
+                    return false;
+                }
+                if !root && node.is_red() && node.left.is_red() {
+                    return false;
+                }
+                node.left.is_23(false) && node.right.is_23(false)
+            }
+        }
+    }
+
+    fn is_balanced(&self, mut black: i32) -> bool {
+        match *self {
+            None => black == 0,
+            Some(ref node) => {
+                if !node.is_red() {
+                    black -= 1;
+                }
+                node.left.is_balanced(black) && node.right.is_balanced(black)
+            }
+        }
     }
 }
 
@@ -263,10 +349,10 @@ fn basic_construction() {
 #[test]
 fn insert_sequence() {
     let mut tree = LLRBTree::new();
-    for i in 0..10 {
+    for i in 0..256 {
         assert_eq!(tree.insert(i, i), None);
     }
-    for i in 0..10 {
+    for i in 0..256 {
         assert_eq!(tree.get(i), Some(i));
     }
 }
