@@ -158,7 +158,6 @@ trait BoxNode {
     fn move_red_to_right(&mut self);
     fn post_insert_balance(&mut self);
     fn post_remove_balance(&mut self);
-    fn remove_min(&mut self) -> i32;
 }
 
 impl BoxNode for Box<Node> {
@@ -246,16 +245,6 @@ impl BoxNode for Box<Node> {
             self.flip_colors();
         }
     }
-
-    fn remove_min(&mut self) -> i32 {
-        if self.left.is_none() {
-            return self.key;
-        }
-        if !self.left.is_red() && !self.left.left().is_red() {
-            self.move_red_to_left();
-        }
-        self.left.remove_min().unwrap()
-    }
 }
 
 trait OptionBoxNode {
@@ -323,15 +312,18 @@ impl OptionBoxNode for Option<Box<Node>> {
 
     fn remove_min(&mut self) -> Option<i32> {
         if self.is_none() {
-            return None;
-        }
-        let min = self.mutate().remove_min();
-        if min == self.reference().key {
-            self.take();
+            None
+        } else if self.reference().left.is_none() {
+            Some(self.take().unwrap().key)
         } else {
-            self.mutate().post_remove_balance();
+            let node = self.mutate();
+            if !node.left.is_red() && !node.left.left().is_red() {
+                node.move_red_to_left();
+            }
+            let min = node.left.remove_min();
+            node.post_remove_balance();
+            min
         }
-        Some(min)
     }
 
     fn reference(&self) -> &Box<Node> {
