@@ -71,9 +71,25 @@ impl LLRBTree {
 
     pub fn insert(&mut self, key: i32, value: i32) -> Option<i32> {
         let prev = self.root.insert(key, value);
-        self.root.mutate().color = Color::Black;
+        self.root.set_color(Color::Black);
         debug_assert!(self.check());
         prev
+    }
+
+    pub fn remove_min(&mut self) -> Option<i32> {
+        if self.root.is_none() {
+            None
+        } else {
+            if !self.root.left().is_red() && !self.root.right().is_red() {
+                self.root.set_color(Color::Red);
+            }
+            let min = self.root.remove_min();
+            if self.root.is_some() {
+                self.root.set_color(Color::Black);
+            }
+            debug_assert!(self.check());
+            min
+        }
     }
 
     fn is_bst(&self) -> bool {
@@ -138,6 +154,11 @@ trait BoxNode {
     fn left_rotate(&mut self);
     fn right_rotate(&mut self);
     fn flip_colors(&mut self);
+    fn move_red_to_left(&mut self);
+    fn move_red_to_right(&mut self);
+    fn post_insert_balance(&mut self);
+    fn post_remove_balance(&mut self);
+    fn remove_min(&mut self) -> i32;
 }
 
 impl BoxNode for Box<Node> {
@@ -174,6 +195,67 @@ impl BoxNode for Box<Node> {
         self.left.mutate().color.flip();
         self.right.mutate().color.flip();
     }
+
+    // Assuming that self is red and both self.left and self.left.left
+    // are black, make self.left or one of its children red.
+    fn move_red_to_left(&mut self) {
+        debug_assert!(self.is_red());
+        debug_assert!(!self.left.is_red());
+        debug_assert!(!self.left.left().is_red());
+        self.flip_colors();
+        if self.right.left().is_red() {
+            self.right.mutate().right_rotate();
+            self.left_rotate();
+            self.flip_colors();
+        }
+    }
+
+    // Assuming that self is red and both self.right and self.right.left
+    // are black, make self.right or one of its children red.
+    fn move_red_to_right(&mut self) {
+        debug_assert!(self.is_red());
+        debug_assert!(!self.right.is_red());
+        debug_assert!(!self.right.left().is_red());
+        self.flip_colors();
+        if self.left.left().is_red() {
+            self.right_rotate();
+            self.flip_colors();
+        }
+    }
+
+    fn post_insert_balance(&mut self) {
+        if !self.left.is_red() && self.right.is_red() {
+            self.left_rotate();
+        }
+        if self.left.is_red() && self.left.left().is_red() {
+            self.right_rotate();
+        }
+        if self.left.is_red() && self.right.is_red() {
+            self.flip_colors();
+        }
+    }
+
+    fn post_remove_balance(&mut self) {
+        if self.right.is_red() {
+            self.left_rotate();
+        }
+        if self.left.is_red() && self.left.left().is_red() {
+            self.right_rotate();
+        }
+        if self.left.is_red() && self.right.is_red() {
+            self.flip_colors();
+        }
+    }
+
+    fn remove_min(&mut self) -> i32 {
+        if self.left.is_none() {
+            return self.key;
+        }
+        if !self.left.is_red() && !self.left.left().is_red() {
+            self.move_red_to_left();
+        }
+        self.left.remove_min().unwrap()
+    }
 }
 
 trait OptionBoxNode {
@@ -181,8 +263,12 @@ trait OptionBoxNode {
     fn is_red(&self) -> bool;
     fn color(&self) -> Color;
     fn insert(&mut self, key: i32, val: i32) -> Option<i32>;
-    fn reference(&mut self) -> &Box<Node>;
+    fn reference(&self) -> &Box<Node>;
     fn mutate(&mut self) -> &mut Box<Node>;
+    fn left(&self) -> &Option<Box<Node>>;
+    fn right(&self) -> &Option<Box<Node>>;
+    fn set_color(&mut self, color: Color);
+    fn remove_min(&mut self) -> Option<i32>;
     fn is_bst(&self, min: Option<i32>, max: Option<i32>) -> bool;
     fn is_23(&self, root: bool) -> bool;
     fn is_balanced(&self, black: i32) -> bool;
@@ -231,25 +317,41 @@ impl OptionBoxNode for Option<Box<Node>> {
                 }
             }
         };
-        let node = self.mutate();
-        if !node.left.is_red() && node.right.is_red() {
-            node.left_rotate();
-        }
-        if node.left.is_red() && node.left.reference().left.is_red() {
-            node.right_rotate();
-        }
-        if node.left.is_red() && node.right.is_red() {
-            node.flip_colors();
-        }
+        self.mutate().post_insert_balance();
         prev
     }
 
-    fn reference(&mut self) -> &Box<Node> {
+    fn remove_min(&mut self) -> Option<i32> {
+        if self.is_none() {
+            return None;
+        }
+        let min = self.mutate().remove_min();
+        if min == self.reference().key {
+            self.take();
+        } else {
+            self.mutate().post_remove_balance();
+        }
+        Some(min)
+    }
+
+    fn reference(&self) -> &Box<Node> {
         self.as_ref().unwrap()
     }
 
     fn mutate(&mut self) -> &mut Box<Node> {
         self.as_mut().unwrap()
+    }
+
+    fn left(&self) -> &Option<Box<Node>> {
+        &self.as_ref().unwrap().left
+    }
+
+    fn right(&self) -> &Option<Box<Node>> {
+        &self.as_ref().unwrap().right
+    }
+
+    fn set_color(&mut self, color: Color) {
+        self.as_mut().unwrap().color = color;
     }
 
     fn is_bst(&self, min: Option<i32>, max: Option<i32>) -> bool {
@@ -369,4 +471,16 @@ fn insert_sequence() {
     for i in 0..256 {
         assert_eq!(tree.get(i), Some(i));
     }
+}
+
+#[test]
+fn remove_min() {
+    let mut tree = LLRBTree::new();
+    for i in 0..256 {
+        assert_eq!(tree.insert(i, i), None);
+    }
+    for i in 0..256 {
+        assert_eq!(tree.remove_min(), Some(i));
+    }
+    assert_eq!(tree.remove_min(), None);
 }
