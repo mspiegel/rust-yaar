@@ -47,6 +47,7 @@ enum Color {
 // is used only for fmt::Display and fmt::Debug.
 struct Link<'a>(&'a Option<Box<Node>>);
 
+#[derive(Default)]
 pub struct LLRBTree {
     root: Option<Box<Node>>,
 }
@@ -60,8 +61,9 @@ struct Node {
 }
 
 impl LLRBTree {
+
     pub fn new() -> Self {
-        LLRBTree { root: None }
+        Default::default()
     }
 
     pub fn get(&self, key: i32) -> Option<i32> {
@@ -119,9 +121,9 @@ impl LLRBTree {
         let mut black = 0;
         let mut next = &self.root;
         loop {
-            match next {
-                &None => break,
-                &Some(ref node) => {
+            match *next {
+                None => break,
+                Some(ref node) => {
                     if !node.is_red() {
                         black += 1;
                     }
@@ -436,9 +438,9 @@ impl OptionBoxNode for Option<Box<Node>> {
 impl<'a> fmt::Display for Link<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let Link(ref link) = *self;
-        match *link {
-            &None => write!(f, "nil"),
-            &Some(ref node) => {
+        match **link {
+            None => write!(f, "nil"),
+            Some(ref node) => {
                 write!(f,
                        "({} {} {})",
                        node.key,
@@ -452,9 +454,9 @@ impl<'a> fmt::Display for Link<'a> {
 impl<'a> fmt::Debug for Link<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let Link(ref link) = *self;
-        match *link {
-            &None => write!(f, "nil"),
-            &Some(ref node) => {
+        match **link {
+            None => write!(f, "nil"),
+            Some(ref node) => {
                 write!(f,
                        "({},{},{} {:?} {:?})",
                        node.key,
