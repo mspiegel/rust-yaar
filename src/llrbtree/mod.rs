@@ -30,8 +30,7 @@
 
 // Also the implementation became much easier after I
 // saw from rcatolino that some methods should be defined
-// on a trait that wraps Box<Node> and other method
-// should be defined on a trait that wraps Option<Box<Node>>.
+// on a trait that wraps Option<Box<Node>>.
 
 use std::cmp::Ordering;
 use std::fmt;
@@ -76,7 +75,23 @@ impl LLRBTree {
         prev
     }
 
-    pub fn remove_min(&mut self) -> Option<i32> {
+    pub fn remove(&mut self, key: i32) -> Option<i32> {
+        let prev = self.root.get(key);
+        if prev.is_none() {
+            return prev;
+        }
+        if !self.root.left().is_red() && !self.root.right().is_red() {
+            self.root.set_color(Color::Red);
+        }
+        self.root.remove(key);
+        if self.root.is_some() {
+            self.root.set_color(Color::Black);
+        }
+        debug_assert!(self.check());
+        prev
+    }
+
+    pub fn remove_min(&mut self) -> Option<(i32, i32)> {
         if self.root.is_none() {
             None
         } else {
@@ -211,6 +226,34 @@ impl Node {
         }
     }
 
+    fn remove(&mut self, key: i32) -> bool {
+        if key.cmp(&self.key) == Ordering::Less {
+            if !self.left.is_red() && !self.left.left().is_red() {
+                self.move_red_to_left();
+            }
+            self.left.remove(key);
+        } else {
+            if self.left.is_red() {
+                self.right_rotate();
+            }
+            if key.cmp(&self.key) == Ordering::Equal && self.right.is_none() {
+                return true;
+            }
+            if !self.right.is_red() && !self.right.left().is_red() {
+                self.move_red_to_right();
+            }
+            if key.cmp(&self.key) == Ordering::Equal {
+                let min = self.right.remove_min().unwrap();
+                self.key = min.0;
+                self.val = min.1;
+            } else {
+                self.right.remove(key);
+            }
+        }
+        self.post_remove_balance();
+        false
+    }
+
     fn post_insert_balance(&mut self) {
         if !self.left.is_red() && self.right.is_red() {
             self.left_rotate();
@@ -246,7 +289,8 @@ trait OptionBoxNode {
     fn left(&self) -> &Option<Box<Node>>;
     fn right(&self) -> &Option<Box<Node>>;
     fn set_color(&mut self, color: Color);
-    fn remove_min(&mut self) -> Option<i32>;
+    fn remove_min(&mut self) -> Option<(i32, i32)>;
+    fn remove(&mut self, key: i32);
     fn is_bst(&self, min: Option<i32>, max: Option<i32>) -> bool;
     fn is_23(&self, root: bool) -> bool;
     fn is_balanced(&self, black: i32) -> bool;
@@ -299,11 +343,12 @@ impl OptionBoxNode for Option<Box<Node>> {
         prev
     }
 
-    fn remove_min(&mut self) -> Option<i32> {
+    fn remove_min(&mut self) -> Option<(i32, i32)> {
         if self.is_none() {
             None
         } else if self.reference().left.is_none() {
-            Some(self.take().unwrap().key)
+            let min = self.take().unwrap();
+            Some((min.key, min.val))
         } else {
             let node = self.mutate();
             if !node.left.is_red() && !node.left.left().is_red() {
@@ -312,6 +357,16 @@ impl OptionBoxNode for Option<Box<Node>> {
             let min = node.left.remove_min();
             node.post_remove_balance();
             min
+        }
+    }
+
+    fn remove(&mut self, key: i32) {
+        if self.is_none() {
+            panic!("Attempt to remove on empty node")
+        }
+        let del = self.mutate().remove(key);
+        if del {
+            self.take();
         }
     }
 
@@ -461,7 +516,19 @@ fn remove_min() {
         assert_eq!(tree.insert(i, i), None);
     }
     for i in 0..256 {
-        assert_eq!(tree.remove_min(), Some(i));
+        assert_eq!(tree.remove_min(), Some((i, i)));
     }
     assert_eq!(tree.remove_min(), None);
+}
+
+#[test]
+fn remove() {
+    let mut tree = LLRBTree::new();
+    for i in 0..256 {
+        assert_eq!(tree.insert(i, i), None);
+    }
+    for i in 0..256 {
+        assert_eq!(tree.remove(i), Some(i));
+        assert_eq!(tree.remove(i), None);
+    }
 }
