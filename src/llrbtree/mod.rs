@@ -149,18 +149,7 @@ impl Node {
     }
 }
 
-trait BoxNode {
-    fn is_red(&self) -> bool;
-    fn left_rotate(&mut self);
-    fn right_rotate(&mut self);
-    fn flip_colors(&mut self);
-    fn move_red_to_left(&mut self);
-    fn move_red_to_right(&mut self);
-    fn post_insert_balance(&mut self);
-    fn post_remove_balance(&mut self);
-}
-
-impl BoxNode for Box<Node> {
+impl Node {
     fn is_red(&self) -> bool {
         self.color == Color::Red
     }
