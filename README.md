@@ -1,4 +1,4 @@
-# Rust Etz (עץ)
+# Rust Yaar (יער)
 
 *“Of all the trees we could've hit, we had to get one that hits back.” - Harry Potter and the Chamber of Secrets*
 
@@ -8,5 +8,6 @@ teaching and learning purposes. They have not been written for performance or ex
 Roadmap:
 
 - [x] left-leaning red-black tree
+- [ ] red-black tree
 - [ ] avl tree
 - [ ] b-tree

@@ -48,7 +48,7 @@ enum Color {
 struct Link<'a>(&'a Option<Box<Node>>);
 
 #[derive(Default)]
-pub struct LLRBTree {
+pub struct RedBlackTree {
     root: Option<Box<Node>>,
 }
 
@@ -60,16 +60,83 @@ struct Node {
     right: Option<Box<Node>>,
 }
 
-impl LLRBTree {
+impl RedBlackTree {
 
-    pub fn new() -> Self {
+    /// Makes a new empty RedBlackTree.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use yaar::llredblack::RedBlackTree;
+    ///
+    /// let mut map = RedBlackTree::new();
+    ///
+    /// // entries can now be inserted into the empty map
+    /// map.insert(1, 1);
+    /// ```
+    pub fn new() -> RedBlackTree {
         Default::default()
     }
 
+    /// Returns the value corresponding to the key.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use yaar::llredblack::RedBlackTree;
+    ///
+    /// let mut map = RedBlackTree::new();
+    /// map.insert(1, 1);
+    /// assert_eq!(map.get(1), Some(1));
+    /// assert_eq!(map.get(2), None);
+    /// ```
     pub fn get(&self, key: i32) -> Option<i32> {
         self.root.get(key)
     }
 
+    /// Returns true if the map contains no elements.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use yaar::llredblack::RedBlackTree;
+    ///
+    /// let mut a = RedBlackTree::new();
+    /// assert!(a.is_empty());
+    /// a.insert(1, 1);
+    /// assert!(!a.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.root.is_none()
+    }
+
+     /// Inserts a key-value pair into the map.
+     ///
+     /// If the map did not have this key present, `None` is returned.
+     ///
+     /// If the map did have this key present, the value is updated, and the old
+     /// value is returned.
+     ///
+     /// # Examples
+     ///
+     /// Basic usage:
+     ///
+     /// ```
+     /// use yaar::llredblack::RedBlackTree;
+     ///
+     /// let mut map = RedBlackTree::new();
+     /// assert_eq!(map.insert(37, 1), None);
+     /// assert_eq!(map.is_empty(), false);
+     ///
+     /// map.insert(37, 2);
+     /// assert_eq!(map.insert(37, 3), Some(2));
+     /// ```
     pub fn insert(&mut self, key: i32, value: i32) -> Option<i32> {
         let prev = self.root.insert(key, value);
         self.root.set_color(Color::Black);
@@ -77,6 +144,21 @@ impl LLRBTree {
         prev
     }
 
+    /// Removes a key from the map, returning the value at the key if the key
+    /// was previously in the map.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use yaar::llredblack::RedBlackTree;
+    ///
+    /// let mut map = RedBlackTree::new();
+    /// map.insert(1, 1);
+    /// assert_eq!(map.remove(1), Some(1));
+    /// assert_eq!(map.remove(1), None);
+    /// ```
     pub fn remove(&mut self, key: i32) -> Option<i32> {
         let prev = self.root.get(key);
         if prev.is_none() {
@@ -142,13 +224,13 @@ impl LLRBTree {
     }
 }
 
-impl fmt::Display for LLRBTree {
+impl fmt::Display for RedBlackTree {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", Link(&self.root))
     }
 }
 
-impl fmt::Debug for LLRBTree {
+impl fmt::Debug for RedBlackTree {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", Link(&self.root))
     }
@@ -491,46 +573,52 @@ fn new_leaf(key: i32, val: i32) -> Option<Box<Node>> {
     Some(Box::new(Node::new(key, val)))
 }
 
-#[test]
-fn basic_construction() {
-    let mut tree = LLRBTree::new();
-    assert_eq!(tree.get(0), None);
-    assert_eq!(tree.insert(0, 1), None);
-    assert_eq!(tree.insert(0, 2), Some(1));
-    assert_eq!(tree.get(0), Some(2));
-}
 
-#[test]
-fn insert_sequence() {
-    let mut tree = LLRBTree::new();
-    for i in 0..256 {
-        assert_eq!(tree.insert(i, i), None);
-    }
-    for i in 0..256 {
-        assert_eq!(tree.get(i), Some(i));
-    }
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn remove_min() {
-    let mut tree = LLRBTree::new();
-    for i in 0..256 {
-        assert_eq!(tree.insert(i, i), None);
+    #[test]
+    fn basic_construction() {
+        let mut tree = RedBlackTree::new();
+        assert_eq!(tree.get(0), None);
+        assert_eq!(tree.insert(0, 1), None);
+        assert_eq!(tree.insert(0, 2), Some(1));
+        assert_eq!(tree.get(0), Some(2));
     }
-    for i in 0..256 {
-        assert_eq!(tree.remove_min(), Some((i, i)));
-    }
-    assert_eq!(tree.remove_min(), None);
-}
 
-#[test]
-fn remove() {
-    let mut tree = LLRBTree::new();
-    for i in 0..256 {
-        assert_eq!(tree.insert(i, i), None);
+    #[test]
+    fn insert_sequence() {
+        let mut tree = RedBlackTree::new();
+        for i in 0..256 {
+            assert_eq!(tree.insert(i, i), None);
+        }
+        for i in 0..256 {
+            assert_eq!(tree.get(i), Some(i));
+        }
     }
-    for i in 0..256 {
-        assert_eq!(tree.remove(i), Some(i));
-        assert_eq!(tree.remove(i), None);
+
+    #[test]
+    fn remove_min() {
+        let mut tree = RedBlackTree::new();
+        for i in 0..256 {
+            assert_eq!(tree.insert(i, i), None);
+        }
+        for i in 0..256 {
+            assert_eq!(tree.remove_min(), Some((i, i)));
+        }
+        assert_eq!(tree.remove_min(), None);
+    }
+
+    #[test]
+    fn remove() {
+        let mut tree = RedBlackTree::new();
+        for i in 0..256 {
+            assert_eq!(tree.insert(i, i), None);
+        }
+        for i in 0..256 {
+            assert_eq!(tree.remove(i), Some(i));
+            assert_eq!(tree.remove(i), None);
+        }
     }
 }
