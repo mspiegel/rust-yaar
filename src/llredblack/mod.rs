@@ -61,7 +61,6 @@ struct Node {
 }
 
 impl RedBlackTree {
-
     /// Makes a new empty RedBlackTree.
     ///
     /// # Examples
@@ -116,31 +115,31 @@ impl RedBlackTree {
         self.root.is_none()
     }
 
-     /// Inserts a key-value pair into the map.
-     ///
-     /// If the map did not have this key present, `None` is returned.
-     ///
-     /// If the map did have this key present, the value is updated, and the old
-     /// value is returned.
-     ///
-     /// # Examples
-     ///
-     /// Basic usage:
-     ///
-     /// ```
-     /// use yaar::llredblack::RedBlackTree;
-     ///
-     /// let mut map = RedBlackTree::new();
-     /// assert_eq!(map.insert(37, 1), None);
-     /// assert_eq!(map.is_empty(), false);
-     ///
-     /// map.insert(37, 2);
-     /// assert_eq!(map.insert(37, 3), Some(2));
-     /// ```
+    /// Inserts a key-value pair into the map.
+    ///
+    /// If the map did not have this key present, `None` is returned.
+    ///
+    /// If the map did have this key present, the value is updated, and the old
+    /// value is returned.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use yaar::llredblack::RedBlackTree;
+    ///
+    /// let mut map = RedBlackTree::new();
+    /// assert_eq!(map.insert(37, 1), None);
+    /// assert_eq!(map.is_empty(), false);
+    ///
+    /// map.insert(37, 2);
+    /// assert_eq!(map.insert(37, 3), Some(2));
+    /// ```
     pub fn insert(&mut self, key: i32, value: i32) -> Option<i32> {
         let prev = self.root.insert(key, value);
         self.root.set_color(Color::Black);
-        debug_assert!(self.check());
+        self.check();
         prev
     }
 
@@ -171,10 +170,26 @@ impl RedBlackTree {
         if self.root.is_some() {
             self.root.set_color(Color::Black);
         }
-        debug_assert!(self.check());
+        self.check();
         prev
     }
 
+    /// Removes the minimum element from the map,
+    /// returning the (key,value) pair of the minimum
+    /// if the tree is not empty.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use yaar::llredblack::RedBlackTree;
+    ///
+    /// let mut map = RedBlackTree::new();
+    /// map.insert(1, 1);
+    /// assert_eq!(map.remove_min(), Some((1,1)));
+    /// assert_eq!(map.remove_min(), None);
+    /// ```
     pub fn remove_min(&mut self) -> Option<(i32, i32)> {
         if self.root.is_none() {
             None
@@ -186,19 +201,25 @@ impl RedBlackTree {
             if self.root.is_some() {
                 self.root.set_color(Color::Black);
             }
-            debug_assert!(self.check());
+            self.check();
             min
         }
     }
 
+    /// Returns true if the tree satisfies the ordered
+    // propery of a binary search tree.
     fn is_bst(&self) -> bool {
         self.root.is_bst(None, None)
     }
 
+    /// Returns true if the tree is isomorphic to a 2-3 tree.
     fn is_23(&self) -> bool {
         self.root.is_23(true)
     }
 
+    /// Returns true if he path from the root to the
+    // farthest leaf is no more than twice as long as
+    // the path from the root to the nearest leaf.
     fn is_balanced(&self) -> bool {
         let mut black = 0;
         let mut next = &self.root;
@@ -216,11 +237,13 @@ impl RedBlackTree {
         self.root.is_balanced(black)
     }
 
-    fn check(&self) -> bool {
+    /// Applies all the invariant tests on the
+    /// binary search tree. Tests are only
+    // applied in the debug! context.
+    fn check(&self) {
         debug_assert!(self.is_bst(), "Not a binary search tree");
         debug_assert!(self.is_23(), "Not a 2-3 tree");
         debug_assert!(self.is_balanced(), "Not balanced");
-        true
     }
 }
 
@@ -237,7 +260,7 @@ impl fmt::Debug for RedBlackTree {
 }
 
 impl Node {
-    fn new(key: i32, val: i32) -> Self {
+    fn leaf(key: i32, val: i32) -> Node {
         Node {
             key: key,
             val: val,
@@ -570,7 +593,7 @@ impl fmt::Display for Color {
 }
 
 fn new_leaf(key: i32, val: i32) -> Option<Box<Node>> {
-    Some(Box::new(Node::new(key, val)))
+    Some(Box::new(Node::leaf(key, val)))
 }
 
 
