@@ -269,9 +269,7 @@ impl Node {
             right: None,
         }
     }
-}
 
-impl Node {
     fn is_red(&self) -> bool {
         self.color == Color::Red
     }
