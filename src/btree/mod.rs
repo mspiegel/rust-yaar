@@ -5,7 +5,7 @@ struct Node {
     children: Option<Vec<Box<Node>>>
 }
 
-struct SplitTuple(i32, Box<Node>);
+struct KeyNodePair(i32, Box<Node>);
 
 pub struct BTree {
     root: Option<Box<Node>>,
@@ -33,7 +33,7 @@ impl BTree {
             Some(_) => {
                 let (prev, split) = self.root.as_mut().unwrap().insert(key, value, self.max);
                 if split.is_some() {
-                    let SplitTuple(key, child) = split.unwrap();
+                    let KeyNodePair(key, child) = split.unwrap();
                     let children = vec![self.root.take().unwrap(), child];
                     self.root = Node::new_root(key, children);
                 }
@@ -43,13 +43,13 @@ impl BTree {
     }
 }
 
-impl SplitTuple {
+impl KeyNodePair {
     fn new(
         key: i32,
         keys: Vec<i32>,
         vals: Option<Vec<i32>>,
-        children: Option<Vec<Box<Node>>>) -> SplitTuple {
-            SplitTuple(key, Box::new(Node{keys:keys, vals:vals, children: children}))
+        children: Option<Vec<Box<Node>>>) -> KeyNodePair {
+            KeyNodePair(key, Box::new(Node{keys:keys, vals:vals, children: children}))
     }
 }
 
@@ -76,7 +76,7 @@ impl Node {
         }
     }
 
-    fn split(&mut self, max: usize) -> Option<SplitTuple> {
+    fn split(&mut self, max: usize) -> Option<KeyNodePair> {
         if self.keys.len() > max {
             let partition = self.keys.len() / 2;
             match self.children {
@@ -84,12 +84,12 @@ impl Node {
                     let mut newkeys = self.keys.split_off(partition);
                     let newchildren = children.split_off(partition + 1);
                     let newkey = newkeys.remove(0);
-                    Some(SplitTuple::new(newkey, newkeys, None, Some(newchildren)))
+                    Some(KeyNodePair::new(newkey, newkeys, None, Some(newchildren)))
                 },
                 None => {
                     let newkeys = self.keys.split_off(partition);
                     let newvals = Some(self.mut_values().split_off(partition));
-                    Some(SplitTuple::new(newkeys[0], newkeys, newvals, None))
+                    Some(KeyNodePair::new(newkeys[0], newkeys, newvals, None))
                 }
             }
         } else {
@@ -97,14 +97,14 @@ impl Node {
         }
     }
 
-    fn insert(&mut self, key: i32, value: i32, max: usize) -> (Option<i32>, Option<SplitTuple>) {
+    fn insert(&mut self, key: i32, value: i32, max: usize) -> (Option<i32>, Option<KeyNodePair>) {
         let position = self.keys.binary_search(&key);
         let prev = match self.children {
             Some(ref mut children) => {
                 let index = Node::index(position);
                 let (prev, newchild) = children[index].insert(key, value, max);
                 if newchild.is_some() {
-                    let SplitTuple(key, newchild) = newchild.unwrap();
+                    let KeyNodePair(key, newchild) = newchild.unwrap();
                     let index = Node::index(self.keys.binary_search(&key));
                     self.keys.insert(index, key);
                     children.insert(index + 1, newchild);
