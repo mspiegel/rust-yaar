@@ -13,10 +13,38 @@ pub struct BTree {
 }
 
 impl BTree {
+    /// Makes a new empty BTree.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use yaar::btree::BTree;
+    ///
+    /// let mut map = BTree::new(16);
+    ///
+    /// // entries can now be inserted into the empty map
+    /// map.insert(1, 1);
+    /// ```
     pub fn new(max: usize) -> BTree {
         BTree{ root: None, max: max }
     }
 
+    /// Returns the value corresponding to the key.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use yaar::btree::BTree;
+    ///
+    /// let mut map = BTree::new(16);
+    /// map.insert(1, 1);
+    /// assert_eq!(map.get(1), Some(1));
+    /// assert_eq!(map.get(2), None);
+    /// ```
     pub fn get(&self, key: i32) -> Option<i32> {
         match self.root {
             None => None,
@@ -24,6 +52,45 @@ impl BTree {
         }
     }
 
+    /// Returns true if the map contains no elements.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use yaar::btree::BTree;
+    ///
+    /// let mut a = BTree::new(16);
+    /// assert!(a.is_empty());
+    /// a.insert(1, 1);
+    /// assert!(!a.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.root.is_none()
+    }
+
+    /// Inserts a key-value pair into the map.
+    ///
+    /// If the map did not have this key present, `None` is returned.
+    ///
+    /// If the map did have this key present, the value is updated, and the old
+    /// value is returned.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use yaar::btree::BTree;
+    ///
+    /// let mut map = BTree::new(16);
+    /// assert_eq!(map.insert(37, 1), None);
+    /// assert_eq!(map.is_empty(), false);
+    ///
+    /// map.insert(37, 2);
+    /// assert_eq!(map.insert(37, 3), Some(2));
+    /// ```
     pub fn insert(&mut self, key: i32, value: i32) -> Option<i32> {
         match self.root {
             None => {
