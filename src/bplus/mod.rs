@@ -1,26 +1,28 @@
-
 use std::cmp;
 use std::cmp::Ordering;
 use std::mem;
 
-#[derive(PartialEq, Eq, Copy, Clone)]
-enum Neighbor {
-    Less,
-    Greater
-}
-
+#[derive(Debug)]
 struct Node {
     keys: Vec<i32>,
     vals: Option<Vec<i32>>,
-    children: Option<Vec<Box<Node>>>
+    children: Option<Vec<Box<Node>>>,
+}
+
+#[derive(Debug)]
+pub struct BTree {
+    root: Option<Box<Node>>,
+    max: usize,
+    min: usize,
+}
+
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
+enum Neighbor {
+    Less,
+    Greater,
 }
 
 struct KeyNodePair(i32, Box<Node>);
-
-pub struct BTree {
-    root: Option<Box<Node>>,
-    max: usize
-}
 
 impl BTree {
     /// Makes a new empty BTree.
@@ -30,7 +32,7 @@ impl BTree {
     /// Basic usage:
     ///
     /// ```
-    /// use yaar::btree::BTree;
+    /// use yaar::bplus::BTree;
     ///
     /// let mut map = BTree::new(16);
     ///
@@ -38,7 +40,11 @@ impl BTree {
     /// map.insert(1, 1);
     /// ```
     pub fn new(max: usize) -> BTree {
-        BTree{ root: None, max: max }
+        BTree {
+            root: None,
+            max: max,
+            min: max / 2,
+        }
     }
 
     /// Returns the value corresponding to the key.
@@ -48,7 +54,7 @@ impl BTree {
     /// Basic usage:
     ///
     /// ```
-    /// use yaar::btree::BTree;
+    /// use yaar::bplus::BTree;
     ///
     /// let mut map = BTree::new(16);
     /// map.insert(1, 1);
@@ -58,7 +64,7 @@ impl BTree {
     pub fn get(&self, key: i32) -> Option<i32> {
         match self.root {
             None => None,
-            Some(ref node) => node.get(key)
+            Some(ref node) => node.get(key),
         }
     }
 
@@ -69,7 +75,7 @@ impl BTree {
     /// Basic usage:
     ///
     /// ```
-    /// use yaar::btree::BTree;
+    /// use yaar::bplus::BTree;
     ///
     /// let mut a = BTree::new(16);
     /// assert!(a.is_empty());
@@ -92,7 +98,7 @@ impl BTree {
     /// Basic usage:
     ///
     /// ```
-    /// use yaar::btree::BTree;
+    /// use yaar::bplus::BTree;
     ///
     /// let mut map = BTree::new(16);
     /// assert_eq!(map.insert(37, 1), None);
@@ -106,7 +112,7 @@ impl BTree {
             None => {
                 self.root = Node::new_leaf(key, value);
                 None
-            },
+            }
             Some(_) => {
                 let (prev, split) = self.root.as_mut().unwrap().insert(key, value, self.max);
                 if split.is_some() {
@@ -120,15 +126,11 @@ impl BTree {
     }
 
     pub fn remove(&mut self, key: i32) -> Option<i32> {
-        let min = self.max / 2;
         if self.root.is_some() {
             let (prev, empty) = {
                 let node = self.root.as_mut().unwrap();
-                let (prev, _) = node.remove(key, min);
-                match node.children {
-                    None => (prev, node.keys.len() == 0),
-                    Some(ref children) => (prev, children.len() == 1)
-                }
+                let (prev, _) = node.remove(key, self.min);
+                (prev, node.keys.len() == 0)
             };
             if empty {
                 let node = self.root.take().unwrap();
@@ -144,23 +146,35 @@ impl BTree {
 }
 
 impl KeyNodePair {
-    fn new(
-        key: i32,
-        keys: Vec<i32>,
-        vals: Option<Vec<i32>>,
-        children: Option<Vec<Box<Node>>>) -> KeyNodePair {
-            KeyNodePair(key, Box::new(Node{keys:keys, vals:vals, children: children}))
+    fn new(key: i32,
+           keys: Vec<i32>,
+           vals: Option<Vec<i32>>,
+           children: Option<Vec<Box<Node>>>)
+           -> KeyNodePair {
+        KeyNodePair(key,
+                    Box::new(Node {
+                        keys: keys,
+                        vals: vals,
+                        children: children,
+                    }))
     }
 }
 
 impl Node {
-
     fn new_leaf(key: i32, value: i32) -> Option<Box<Node>> {
-        Some(Box::new(Node { keys: vec![key], vals: Some(vec![value]), children: None }))
+        Some(Box::new(Node {
+            keys: vec![key],
+            vals: Some(vec![value]),
+            children: None,
+        }))
     }
 
     fn new_root(key: i32, children: Vec<Box<Node>>) -> Option<Box<Node>> {
-        Some(Box::new(Node { keys: vec![key], vals: None, children: Some(children) }))
+        Some(Box::new(Node {
+            keys: vec![key],
+            vals: None,
+            children: Some(children),
+        }))
     }
 
     fn get(&self, key: i32) -> Option<i32> {
@@ -171,7 +185,7 @@ impl Node {
         } else {
             match position {
                 Ok(index) => Some(self.value(index)),
-                Err(_) => None
+                Err(_) => None,
             }
         }
     }
@@ -185,7 +199,7 @@ impl Node {
                     let newchildren = children.split_off(partition + 1);
                     let newkey = newkeys.remove(0);
                     Some(KeyNodePair::new(newkey, newkeys, None, Some(newchildren)))
-                },
+                }
                 None => {
                     let newkeys = self.keys.split_off(partition);
                     let newvals = Some(self.mut_values().split_off(partition));
@@ -210,16 +224,16 @@ impl Node {
                     children.insert(index + 1, newchild);
                 }
                 prev
-            },
+            }
             None => {
                 let prev = match position {
                     Ok(index) => Some(self.value(index)),
-                    Err(_) => None
+                    Err(_) => None,
                 };
                 match position {
                     Ok(index) => {
                         self.mut_values()[index] = value;
-                    },
+                    }
                     Err(index) => {
                         self.keys.insert(index, value);
                         self.mut_values().insert(index, value);
@@ -238,27 +252,27 @@ impl Node {
     fn merge_select_sibling(&self, index: usize) -> Neighbor {
         let leftsize = if index > 0 {
             self.ref_children()[index - 1].keys.len()
-        } else { 0 };
+        } else {
+            0
+        };
         let rightsize = if index < self.ref_children().len() - 1 {
             self.ref_children()[index + 1].keys.len()
-        } else { 0 };
+        } else {
+            0
+        };
         if leftsize == 0 && rightsize == 0 {
             panic!("left and right children are empty");
         }
         match rightsize.cmp(&leftsize) {
             Ordering::Less | Ordering::Equal => Neighbor::Less,
-            Ordering::Greater => Neighbor::Greater
+            Ordering::Greater => Neighbor::Greater,
         }
     }
 
     fn neighbor(index: usize, ord: Neighbor) -> usize {
         match ord {
-            Neighbor::Less => {
-                index - 1
-            },
-            Neighbor::Greater => {
-                index + 1
-            }
+            Neighbor::Less => index - 1,
+            Neighbor::Greater => index + 1,
         }
     }
 
@@ -268,7 +282,7 @@ impl Node {
                 let (left, right) = self.mut_children().split_at_mut(index);
                 let index = left.len() - 1;
                 (&mut right[0], &mut left[index])
-            },
+            }
             Neighbor::Greater => {
                 let (left, right) = self.mut_children().split_at_mut(index + 1);
                 let index = left.len() - 1;
@@ -279,26 +293,30 @@ impl Node {
 
     fn get_parent_key(&self, index: usize, ord: Neighbor) -> i32 {
         match ord {
+            Neighbor::Less => self.keys[index - 1],
+            Neighbor::Greater => self.keys[index],
+        }
+    }
+
+    fn set_parent_key(&mut self, key: i32, index: usize, ord: Neighbor) {
+        match ord {
             Neighbor::Less => {
-                self.keys[index - 1]
-            },
+                self.keys[index - 1] = key;
+            }
             Neighbor::Greater => {
-                self.keys[index]
+                self.keys[index] = key;
             }
         }
     }
 
-    fn set_parent_key(&mut self, key: Option<i32>, index: usize, ord: Neighbor) {
-        match key {
-            Some(value) => match ord {
-                Neighbor::Less => {
-                    self.keys[index - 1] = value;
-                },
-                Neighbor::Greater => {
-                    self.keys[index] = value;
-                }
-            },
-            None => {}
+    fn drop_parent_key(&mut self, index: usize, ord: Neighbor) {
+        match ord {
+            Neighbor::Less => {
+                self.keys.remove(index - 1);
+            }
+            Neighbor::Greater => {
+                self.keys.remove(index);
+            }
         }
     }
 
@@ -306,7 +324,7 @@ impl Node {
         match ord {
             Neighbor::Less => {
                 sibling.push(key);
-            },
+            }
             Neighbor::Greater => {
                 sibling.insert(0, key);
             }
@@ -320,7 +338,7 @@ impl Node {
                 let mut newdest = src.split_off(position);
                 newdest.append(dest);
                 *dest = newdest;
-            },
+            }
             Neighbor::Greater => {
                 let newsrc = src.split_off(count);
                 dest.append(src);
@@ -329,14 +347,20 @@ impl Node {
         }
     }
 
-    fn post_redistribute(sibling: &mut Vec<i32>, ord: Neighbor) -> i32 {
+    fn post_redistribute_get(sibling: &Vec<i32>, ord: Neighbor) -> i32 {
         match ord {
             Neighbor::Less => {
-                sibling.pop().unwrap()
-            },
-            Neighbor::Greater => {
-                sibling.remove(0)
+                let len = sibling.len();
+                sibling[len - 1]
             }
+            Neighbor::Greater => sibling[0],
+        }
+    }
+
+    fn post_redistribute_take(sibling: &mut Vec<i32>, ord: Neighbor) -> i32 {
+        match ord {
+            Neighbor::Less => sibling.pop().unwrap(),
+            Neighbor::Greater => sibling.remove(0),
         }
     }
 
@@ -348,13 +372,19 @@ impl Node {
             let count = cmp::max(1, (sibling_len - min) / 2);
             if child.children.is_none() {
                 Node::redistribute(&mut sibling.keys, &mut child.keys, ord, count);
-                Node::redistribute(&mut sibling.mut_values(), &mut child.mut_values(), ord, count);
-                None
+                Node::redistribute(&mut sibling.mut_values(),
+                                   &mut child.mut_values(),
+                                   ord,
+                                   count);
+                Node::post_redistribute_get(&sibling.keys, ord)
             } else {
                 Node::pre_redistribute(&mut sibling.keys, pkey, ord);
                 Node::redistribute(&mut sibling.keys, &mut child.keys, ord, count);
-                Node::redistribute(&mut sibling.mut_children(), &mut child.mut_children(), ord, count);
-                Some(Node::post_redistribute(&mut sibling.keys, ord))
+                Node::redistribute(&mut sibling.mut_children(),
+                                   &mut child.mut_children(),
+                                   ord,
+                                   count);
+                Node::post_redistribute_take(&mut sibling.keys, ord)
             }
         };
         self.set_parent_key(ckey, index, ord);
@@ -364,7 +394,7 @@ impl Node {
         match ord {
             Neighbor::Less => {
                 sibling.append(child);
-            },
+            }
             Neighbor::Greater => {
                 child.append(sibling);
                 mem::swap(child, sibling);
@@ -372,30 +402,37 @@ impl Node {
         }
     }
 
-    fn merge_collapse(&mut self, index: usize, ord: Neighbor) {
-        {
-            let (mut child, mut sibling) = self.partition(index, ord);
-            if child.children.is_some() {
-                debug_assert_eq!(child.keys.len() + 1, child.ref_children().len());
-            } else {
-                debug_assert_eq!(child.keys.len(), child.ref_values().len());
-            }
-            Node::collapse(&mut sibling.keys, &mut child.keys, ord);
-            if child.children.is_some() {
-                Node::collapse(&mut sibling.mut_children(), &mut child.mut_children(), ord);
-            } else {
-                Node::collapse(&mut sibling.mut_values(), &mut child.mut_values(), ord);
-            }
-        }
-        self.mut_children().remove(index);
+    fn collapse_with_middle<T>(sibling: &mut Vec<T>,
+                               child: &mut Vec<T>,
+                               middle: T,
+                               ord: Neighbor) {
         match ord {
             Neighbor::Less => {
-                self.keys.remove(index - 1);
-            },
+                sibling.push(middle);
+                sibling.append(child);
+            }
             Neighbor::Greater => {
-                self.keys.remove(index);
+                child.push(middle);
+                child.append(sibling);
+                mem::swap(child, sibling);
             }
         }
+    }
+
+    fn merge_collapse(&mut self, index: usize, ord: Neighbor) {
+        let pkey = self.get_parent_key(index, ord);
+        {
+            let (mut child, mut sibling) = self.partition(index, ord);
+            if child.children.is_none() {
+                Node::collapse(&mut sibling.keys, &mut child.keys, ord);
+                Node::collapse(&mut sibling.mut_values(), &mut child.mut_values(), ord);
+            } else {
+                Node::collapse_with_middle(&mut sibling.keys, &mut child.keys, pkey, ord);
+                Node::collapse(&mut sibling.mut_children(), &mut child.mut_children(), ord);
+            }
+        }
+        self.drop_parent_key(index, ord);
+        self.mut_children().remove(index);
     }
 
     fn merge_child(&mut self, index: usize, min: usize) {
@@ -405,7 +442,7 @@ impl Node {
         if sib_len > min {
             self.merge_redistribute(index, ord, min);
         } else {
-            //self.merge_collapse(index, ord);
+            self.merge_collapse(index, ord);
         }
     }
 
@@ -415,14 +452,14 @@ impl Node {
             Some(ref mut children) => {
                 let index = Node::index(position);
                 children[index].remove(key, min)
-            },
+            }
             None => {
                 match position {
                     Ok(index) => {
                         self.keys.remove(index);
                         (Some(self.mut_values().remove(index)), false)
                     }
-                    Err(_) => (None, false)
+                    Err(_) => (None, false),
                 }
             }
         };
@@ -432,7 +469,7 @@ impl Node {
         (prev, self.needs_merge(min))
     }
 
-    fn index(position: Result<usize,usize>) -> usize {
+    fn index(position: Result<usize, usize>) -> usize {
         match position {
             Ok(index) => index + 1,
             Err(index) => index,
@@ -464,56 +501,11 @@ impl Node {
     }
 }
 
-#[test]
-fn redistribute() {
-    let mut vec1 = vec![1, 2, 3];
-    let mut vec2 = vec![4, 5, 6];
-    Node::redistribute(&mut vec1, &mut vec2, Neighbor::Less, 2);
-    assert_eq!(vec1, vec![1]);
-    assert_eq!(vec2, vec![2, 3, 4, 5, 6]);
-
-    let mut vec3 = vec![1, 2, 3];
-    let mut vec4 = vec![4, 5, 6];
-    Node::redistribute(&mut vec4, &mut vec3, Neighbor::Greater, 2);
-    assert_eq!(vec3, vec![1, 2, 3, 4, 5]);
-    assert_eq!(vec4, vec![6]);
-}
-
-fn testnode() -> Box<Node> {
-    Node::new_leaf(0,0).unwrap()
-}
-
-#[test]
-fn redistribute_children_left() {
-    let left = Box::new(Node{keys: vec![1, 2, 3, 4, 5, 6], vals: None,
-        children: Some(vec![testnode(), testnode()])});
-    let right = Box::new(Node{keys: vec![70], vals: None,
-        children: Some(vec![testnode(), testnode(), testnode(),
-        testnode(), testnode(), testnode(), testnode()])});
-    let mut parent = Node{keys: vec![50], vals: None, children: Some(vec!(left, right))};
-    parent.merge_redistribute(1, Neighbor::Less, 2);
-    assert_eq!(parent.keys, vec![5]);
-    assert_eq!(parent.ref_children()[0].keys, vec![1, 2, 3, 4]);
-    assert_eq!(parent.ref_children()[1].keys, vec![6, 50, 70]);
-}
-
-#[test]
-fn redistribute_children_right() {
-    let left = Box::new(Node{keys: vec![15], vals: None,
-        children: Some(vec![testnode(), testnode()])});
-    let right = Box::new(Node{keys: vec![20, 30, 40, 50, 60, 70], vals: None,
-        children: Some(vec![testnode(), testnode(), testnode(),
-        testnode(), testnode(), testnode(), testnode()])});
-    let mut parent = Node{keys: vec![18], vals: None, children: Some(vec!(left, right))};
-    parent.merge_redistribute(0, Neighbor::Greater, 2);
-    assert_eq!(parent.keys, vec![30]);
-    assert_eq!(parent.ref_children()[0].keys, vec![15, 18, 20]);
-    assert_eq!(parent.ref_children()[1].keys, vec![40, 50, 60, 70]);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::Node;
+    use super::Neighbor;
 
     #[test]
     fn basic_construction() {
@@ -533,7 +525,117 @@ mod tests {
         }
     }
 
-/*
+    #[test]
+    fn redistribute() {
+        let mut vec1 = vec![1, 2, 3];
+        let mut vec2 = vec![4, 5, 6];
+        Node::redistribute(&mut vec1, &mut vec2, Neighbor::Less, 2);
+        assert_eq!(vec1, vec![1]);
+        assert_eq!(vec2, vec![2, 3, 4, 5, 6]);
+
+        let mut vec3 = vec![1, 2, 3];
+        let mut vec4 = vec![4, 5, 6];
+        Node::redistribute(&mut vec4, &mut vec3, Neighbor::Greater, 2);
+        assert_eq!(vec3, vec![1, 2, 3, 4, 5]);
+        assert_eq!(vec4, vec![6]);
+    }
+
+    fn testnode() -> Box<Node> {
+        Node::new_leaf(0, 0).unwrap()
+    }
+
+    #[test]
+    fn redistribute_children_left() {
+        let left = Box::new(Node {
+            keys: vec![1, 2, 3, 4, 5, 6],
+            vals: None,
+            children: Some(vec![testnode(), testnode(), testnode(), testnode(), testnode(),
+                                testnode(), testnode()]),
+        });
+        let right = Box::new(Node {
+            keys: vec![70],
+            vals: None,
+            children: Some(vec![testnode(), testnode()]),
+        });
+        let mut parent = Node {
+            keys: vec![50],
+            vals: None,
+            children: Some(vec![left, right]),
+        };
+        parent.merge_redistribute(1, Neighbor::Less, 2);
+        assert_eq!(parent.keys, vec![5]);
+        assert_eq!(parent.ref_children()[0].keys, vec![1, 2, 3, 4]);
+        assert_eq!(parent.ref_children()[1].keys, vec![6, 50, 70]);
+    }
+
+    #[test]
+    fn redistribute_children_right() {
+        let left = Box::new(Node {
+            keys: vec![15],
+            vals: None,
+            children: Some(vec![testnode(), testnode()]),
+        });
+        let right = Box::new(Node {
+            keys: vec![20, 30, 40, 50, 60, 70],
+            vals: None,
+            children: Some(vec![testnode(), testnode(), testnode(), testnode(), testnode(),
+                                testnode(), testnode()]),
+        });
+        let mut parent = Node {
+            keys: vec![18],
+            vals: None,
+            children: Some(vec![left, right]),
+        };
+        parent.merge_redistribute(0, Neighbor::Greater, 2);
+        assert_eq!(parent.keys, vec![30]);
+        assert_eq!(parent.ref_children()[0].keys, vec![15, 18, 20]);
+        assert_eq!(parent.ref_children()[1].keys, vec![40, 50, 60, 70]);
+    }
+
+    #[test]
+    fn collapse_children_left() {
+        let left = Box::new(Node {
+            keys: vec![1, 2, 3],
+            vals: None,
+            children: Some(vec![testnode(), testnode(), testnode(), testnode()]),
+        });
+        let right = Box::new(Node {
+            keys: vec![70],
+            vals: None,
+            children: Some(vec![testnode(), testnode()]),
+        });
+        let mut parent = Node {
+            keys: vec![50],
+            vals: None,
+            children: Some(vec![left, right]),
+        };
+        parent.merge_collapse(1, Neighbor::Less);
+        assert_eq!(parent.keys, vec![]);
+        assert_eq!(parent.ref_children()[0].keys, vec![1, 2, 3, 50, 70]);
+    }
+
+    #[test]
+    fn collapse_children_right() {
+        let left = Box::new(Node {
+            keys: vec![1],
+            vals: None,
+            children: Some(vec![testnode(), testnode()]),
+        });
+        let right = Box::new(Node {
+            keys: vec![70, 80, 90],
+            vals: None,
+            children: Some(vec![testnode(), testnode(), testnode(), testnode()]),
+        });
+        let mut parent = Node {
+            keys: vec![50],
+            vals: None,
+            children: Some(vec![left, right]),
+        };
+        parent.merge_collapse(0, Neighbor::Greater);
+        assert_eq!(parent.keys, vec![]);
+        assert_eq!(parent.ref_children()[0].keys, vec![1, 50, 70, 80, 90]);
+    }
+
     #[test]
     fn remove() {
         let mut tree = BTree::new(4);
@@ -545,6 +647,30 @@ mod tests {
             assert_eq!(tree.remove(i), None);
         }
     }
-*/
+
+    #[test]
+    fn remove_reverse() {
+        let mut tree = BTree::new(4);
+        for i in 0..256 {
+            assert_eq!(tree.insert(i, i), None);
+        }
+        for i in (0..256).rev() {
+            assert_eq!(tree.remove(i), Some(i));
+            assert_eq!(tree.remove(i), None);
+        }
+    }
+
+    #[test]
+    fn remove_evens() {
+        let mut tree = BTree::new(4);
+        for i in 0..256 {
+            assert_eq!(tree.insert(i, i), None);
+        }
+        for i in 0..128 {
+            assert_eq!(tree.remove(i * 2), Some(i * 2));
+            assert_eq!(tree.remove(i * 2), None);
+            assert_eq!(tree.get(i * 2 + 1), Some(i * 2 + 1));
+        }
+    }
 
 }

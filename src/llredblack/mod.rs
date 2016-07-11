@@ -33,25 +33,20 @@
 // on a trait that wraps Option<Box<Node>>.
 
 use std::cmp::Ordering;
-use std::fmt;
 use std::mem;
 
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 enum Color {
     Red,
     Black,
 }
 
-// This instance of the newtype pattern
-// https://doc.rust-lang.org/book/structs.html#tuple-structs
-// is used only for fmt::Display and fmt::Debug.
-struct Link<'a>(&'a Option<Box<Node>>);
-
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RedBlackTree {
     root: Option<Box<Node>>,
 }
 
+#[derive(Debug)]
 struct Node {
     key: i32,
     val: i32,
@@ -244,18 +239,6 @@ impl RedBlackTree {
         debug_assert!(self.is_bst(), "Not a binary search tree");
         debug_assert!(self.is_23(), "Not a 2-3 tree");
         debug_assert!(self.is_balanced(), "Not balanced");
-    }
-}
-
-impl fmt::Display for RedBlackTree {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", Link(&self.root))
-    }
-}
-
-impl fmt::Debug for RedBlackTree {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", Link(&self.root))
     }
 }
 
@@ -538,54 +521,11 @@ impl OptionBoxNode for Option<Box<Node>> {
     }
 }
 
-impl<'a> fmt::Display for Link<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Link(ref link) = *self;
-        match **link {
-            None => write!(f, "nil"),
-            Some(ref node) => {
-                write!(f,
-                       "({} {} {})",
-                       node.key,
-                       Link(&node.left),
-                       Link(&node.right))
-            }
-        }
-    }
-}
-
-impl<'a> fmt::Debug for Link<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Link(ref link) = *self;
-        match **link {
-            None => write!(f, "nil"),
-            Some(ref node) => {
-                write!(f,
-                       "({},{},{} {:?} {:?})",
-                       node.key,
-                       node.val,
-                       node.color,
-                       Link(&node.left),
-                       Link(&node.right))
-            }
-        }
-    }
-}
-
 impl Color {
     fn flip(&mut self) {
         match *self {
             Color::Red => *self = Color::Black,
             Color::Black => *self = Color::Red,
-        }
-    }
-}
-
-impl fmt::Display for Color {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Color::Red => write!(f, "red"),
-            Color::Black => write!(f, "black"),
         }
     }
 }
