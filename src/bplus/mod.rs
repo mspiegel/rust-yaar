@@ -130,7 +130,7 @@ impl BTree {
             let (prev, empty) = {
                 let node = self.root.as_mut().unwrap();
                 let (prev, _) = node.remove(key, self.min);
-                (prev, node.keys.len() == 0)
+                (prev, node.keys.is_empty())
             };
             if empty {
                 let node = self.root.take().unwrap();
@@ -347,7 +347,7 @@ impl Node {
         }
     }
 
-    fn post_redistribute_get(sibling: &Vec<i32>, ord: Neighbor) -> i32 {
+    fn post_redistribute_get(sibling: &[i32], ord: Neighbor) -> i32 {
         match ord {
             Neighbor::Less => {
                 let len = sibling.len();
