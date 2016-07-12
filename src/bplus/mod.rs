@@ -178,13 +178,8 @@ trait Node: fmt::Debug {
     fn insert(&mut self, key: i32, value: i32, max: usize) -> InsertResult;
     fn remove(&mut self, key: i32, min: usize) -> RemoveResult;
 
-    fn child_redistribute(&mut self,
-                          sibling: NodeWrap,
-                          pkey: i32,
-                          ord: Neighbor,
-                          min: usize)
-                          -> i32;
-    fn child_collapse(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor);
+    fn shuffle(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor, min: usize) -> i32;
+    fn collapse(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor);
 
     fn needs_merge(&self, min: usize) -> bool {
         self.keys().len() < min
@@ -264,31 +259,26 @@ impl Node for LeafNode {
     }
 
     #[allow(unused_variables)]
-    fn child_redistribute(&mut self,
-                          sibling: NodeWrap,
-                          pkey: i32,
-                          ord: Neighbor,
-                          min: usize)
-                          -> i32 {
+    fn shuffle(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor, min: usize) -> i32 {
         match sibling {
             NodeWrap::Internal(_) => panic!("child and sibling are not on same level"),
             NodeWrap::Leaf(sibling) => {
                 let sibling_len = sibling.keys.len();
                 let count = cmp::max(1, (sibling_len - min) / 2);
-                Node::redistribute(&mut sibling.keys, &mut self.keys, ord, count);
-                Node::redistribute(&mut sibling.vals, &mut self.vals, ord, count);
-                LeafNode::post_redistribute_get(&sibling.keys, ord)
+                Node::vec_shuffle(&mut sibling.keys, &mut self.keys, ord, count);
+                Node::vec_shuffle(&mut sibling.vals, &mut self.vals, ord, count);
+                LeafNode::post_shuffle_get(&sibling.keys, ord)
             }
         }
     }
 
     #[allow(unused_variables)]
-    fn child_collapse(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor) {
+    fn collapse(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor) {
         match sibling {
             NodeWrap::Internal(_) => panic!("child and sibling are not on same level"),
             NodeWrap::Leaf(sibling) => {
-                Node::collapse(&mut sibling.keys, &mut self.keys, ord);
-                Node::collapse(&mut sibling.vals, &mut self.vals, ord);
+                Node::vec_collapse(&mut sibling.keys, &mut self.keys, ord);
+                Node::vec_collapse(&mut sibling.vals, &mut self.vals, ord);
             }
         }
     }
@@ -357,31 +347,26 @@ impl Node for InternalNode {
         }
     }
 
-    fn child_redistribute(&mut self,
-                          sibling: NodeWrap,
-                          pkey: i32,
-                          ord: Neighbor,
-                          min: usize)
-                          -> i32 {
+    fn shuffle(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor, min: usize) -> i32 {
         match sibling {
             NodeWrap::Leaf(_) => panic!("child and sibling are not on same level"),
             NodeWrap::Internal(sibling) => {
                 let sibling_len = sibling.keys.len();
                 let count = cmp::max(1, (sibling_len - min) / 2);
-                InternalNode::pre_redistribute(&mut sibling.keys, pkey, ord);
-                Node::redistribute(&mut sibling.keys, &mut self.keys, ord, count);
-                Node::redistribute(&mut sibling.children, &mut self.children, ord, count);
-                InternalNode::post_redistribute_take(&mut sibling.keys, ord)
+                InternalNode::pre_shuffle(&mut sibling.keys, pkey, ord);
+                Node::vec_shuffle(&mut sibling.keys, &mut self.keys, ord, count);
+                Node::vec_shuffle(&mut sibling.children, &mut self.children, ord, count);
+                InternalNode::post_shuffle_take(&mut sibling.keys, ord)
             }
         }
     }
 
-    fn child_collapse(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor) {
+    fn collapse(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor) {
         match sibling {
             NodeWrap::Leaf(_) => panic!("child and sibling are not on same level"),
             NodeWrap::Internal(sibling) => {
-                Node::collapse_with_middle(&mut sibling.keys, &mut self.keys, pkey, ord);
-                Node::collapse(&mut sibling.children, &mut self.children, ord);
+                Node::vec_collapse_with_middle(&mut sibling.keys, &mut self.keys, pkey, ord);
+                Node::vec_collapse(&mut sibling.children, &mut self.children, ord);
             }
         }
     }
@@ -395,7 +380,7 @@ impl LeafNode {
         }))
     }
 
-    fn post_redistribute_get(sibling: &[i32], ord: Neighbor) -> i32 {
+    fn post_shuffle_get(sibling: &[i32], ord: Neighbor) -> i32 {
         match ord {
             Neighbor::Less => {
                 let len = sibling.len();
@@ -463,7 +448,7 @@ impl InternalNode {
         let pkey = self.get_parent_key(index, ord);
         let ckey = {
             let (mut child, sibling) = self.partition(index, ord);
-            child.child_redistribute(sibling, pkey, ord, min)
+            child.shuffle(sibling, pkey, ord, min)
         };
         self.set_parent_key(ckey, index, ord);
     }
@@ -472,7 +457,7 @@ impl InternalNode {
         let pkey = self.get_parent_key(index, ord);
         {
             let (mut child, sibling) = self.partition(index, ord);
-            child.child_collapse(sibling, pkey, ord);
+            child.collapse(sibling, pkey, ord);
         }
         self.drop_parent_key(index, ord);
         self.children.remove(index);
@@ -522,7 +507,7 @@ impl InternalNode {
         }
     }
 
-    fn pre_redistribute(sibling: &mut Vec<i32>, key: i32, ord: Neighbor) {
+    fn pre_shuffle(sibling: &mut Vec<i32>, key: i32, ord: Neighbor) {
         match ord {
             Neighbor::Less => {
                 sibling.push(key);
@@ -533,7 +518,7 @@ impl InternalNode {
         }
     }
 
-    fn post_redistribute_take(sibling: &mut Vec<i32>, ord: Neighbor) -> i32 {
+    fn post_shuffle_take(sibling: &mut Vec<i32>, ord: Neighbor) -> i32 {
         match ord {
             Neighbor::Less => sibling.pop().unwrap(),
             Neighbor::Greater => sibling.remove(0),
@@ -542,7 +527,7 @@ impl InternalNode {
 }
 
 impl Node {
-    fn redistribute<T>(src: &mut Vec<T>, dest: &mut Vec<T>, ord: Neighbor, count: usize) {
+    fn vec_shuffle<T>(src: &mut Vec<T>, dest: &mut Vec<T>, ord: Neighbor, count: usize) {
         match ord {
             Neighbor::Less => {
                 let position = src.len() - count;
@@ -558,7 +543,7 @@ impl Node {
         }
     }
 
-    fn collapse<T>(sibling: &mut Vec<T>, child: &mut Vec<T>, ord: Neighbor) {
+    fn vec_collapse<T>(sibling: &mut Vec<T>, child: &mut Vec<T>, ord: Neighbor) {
         match ord {
             Neighbor::Less => {
                 sibling.append(child);
@@ -570,10 +555,10 @@ impl Node {
         }
     }
 
-    fn collapse_with_middle<T>(sibling: &mut Vec<T>,
-                               child: &mut Vec<T>,
-                               middle: T,
-                               ord: Neighbor) {
+    fn vec_collapse_with_middle<T>(sibling: &mut Vec<T>,
+                                   child: &mut Vec<T>,
+                                   middle: T,
+                                   ord: Neighbor) {
         match ord {
             Neighbor::Less => {
                 sibling.push(middle);
