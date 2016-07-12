@@ -17,7 +17,7 @@ struct InternalNode {
 
 enum NodeWrap<'a> {
     Leaf(&'a mut LeafNode),
-    Internal(&'a mut InternalNode)
+    Internal(&'a mut InternalNode),
 }
 
 #[derive(Debug)]
@@ -153,11 +153,9 @@ impl BTree {
             }
         }
     }
-
 }
 
-trait Node : fmt::Debug {
-
+trait Node: fmt::Debug {
     fn keys(&self) -> &[i32];
     fn wrap(&mut self) -> NodeWrap;
     fn shrink(&mut self) -> Option<Box<Node>>;
@@ -167,8 +165,13 @@ trait Node : fmt::Debug {
     fn insert(&mut self, key: i32, value: i32, max: usize) -> (Option<i32>, Option<KeyNodePair>);
     fn remove(&mut self, key: i32, min: usize) -> (Option<i32>, bool);
 
-    fn child_redistribute(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor, min: usize) -> i32;
-    fn child_collapse(&mut self, sibling: NodeWrap, pkey:i32, ord: Neighbor);
+    fn child_redistribute(&mut self,
+                          sibling: NodeWrap,
+                          pkey: i32,
+                          ord: Neighbor,
+                          min: usize)
+                          -> i32;
+    fn child_collapse(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor);
 
     fn needs_merge(&self, min: usize) -> bool {
         self.keys().len() < min
@@ -176,8 +179,7 @@ trait Node : fmt::Debug {
 }
 
 impl Node for LeafNode {
-
-    fn keys(&self) -> &[i32]{
+    fn keys(&self) -> &[i32] {
         return &self.keys;
     }
 
@@ -221,8 +223,8 @@ impl Node for LeafNode {
             Ok(index) => {
                 self.keys.remove(index);
                 Some(self.vals.remove(index))
-            },
-            Err(_) => None
+            }
+            Err(_) => None,
         };
         (prev, self.needs_merge(min))
     }
@@ -232,14 +234,23 @@ impl Node for LeafNode {
             let partition = self.keys.len() / 2;
             let newkeys = self.keys.split_off(partition);
             let newvals = self.vals.split_off(partition);
-            Some(KeyNodePair(newkeys[0], Box::new(LeafNode{keys: newkeys, vals: newvals})))
+            Some(KeyNodePair(newkeys[0],
+                             Box::new(LeafNode {
+                                 keys: newkeys,
+                                 vals: newvals,
+                             })))
         } else {
             None
         }
     }
 
     #[allow(unused_variables)]
-    fn child_redistribute(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor, min: usize) -> i32 {
+    fn child_redistribute(&mut self,
+                          sibling: NodeWrap,
+                          pkey: i32,
+                          ord: Neighbor,
+                          min: usize)
+                          -> i32 {
         match sibling {
             NodeWrap::Internal(_) => panic!("child and sibling are not on same level"),
             NodeWrap::Leaf(sibling) => {
@@ -262,11 +273,9 @@ impl Node for LeafNode {
             }
         }
     }
-
 }
 
 impl Node for InternalNode {
-
     fn keys(&self) -> &[i32] {
         return &self.keys;
     }
@@ -317,13 +326,22 @@ impl Node for InternalNode {
             let mut newkeys = self.keys.split_off(partition);
             let newchildren = self.children.split_off(partition + 1);
             let newkey = newkeys.remove(0);
-            Some(KeyNodePair(newkey, Box::new(InternalNode{keys: newkeys, children: newchildren})))
+            Some(KeyNodePair(newkey,
+                             Box::new(InternalNode {
+                                 keys: newkeys,
+                                 children: newchildren,
+                             })))
         } else {
             None
         }
     }
 
-    fn child_redistribute(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor, min: usize) -> i32 {
+    fn child_redistribute(&mut self,
+                          sibling: NodeWrap,
+                          pkey: i32,
+                          ord: Neighbor,
+                          min: usize)
+                          -> i32 {
         match sibling {
             NodeWrap::Leaf(_) => panic!("child and sibling are not on same level"),
             NodeWrap::Internal(sibling) => {
@@ -346,11 +364,9 @@ impl Node for InternalNode {
             }
         }
     }
-
 }
 
 impl LeafNode {
-
     fn new_leaf(key: i32, value: i32) -> Option<Box<Node>> {
         Some(Box::new(LeafNode {
             keys: vec![key],
@@ -367,11 +383,9 @@ impl LeafNode {
             Neighbor::Greater => sibling[0],
         }
     }
-
 }
 
 impl InternalNode {
-
     fn new_root(key: i32, children: Vec<Box<Node>>) -> Option<Box<Node>> {
         Some(Box::new(InternalNode {
             keys: vec![key],
@@ -507,7 +521,6 @@ impl InternalNode {
 }
 
 impl Node {
-
     fn redistribute<T>(src: &mut Vec<T>, dest: &mut Vec<T>, ord: Neighbor, count: usize) {
         match ord {
             Neighbor::Less => {
@@ -552,7 +565,6 @@ impl Node {
             }
         }
     }
-
 }
 
 #[cfg(test)]
@@ -604,10 +616,10 @@ mod tests {
     fn redistribute_children_left() {
         let left = Box::new(InternalNode {
             keys: vec![1, 2, 3, 4, 5, 6],
-            children: vec![testnode(), testnode(), testnode(), testnode(), testnode(),
-                                testnode(), testnode()],
+            children: vec![testnode(), testnode(), testnode(), testnode(), testnode(), testnode(),
+                           testnode()],
         });
-        let right = Box::new(InternalNode{
+        let right = Box::new(InternalNode {
             keys: vec![70],
             children: vec![testnode(), testnode()],
         });
@@ -629,8 +641,8 @@ mod tests {
         });
         let right = Box::new(InternalNode {
             keys: vec![20, 30, 40, 50, 60, 70],
-            children: vec![testnode(), testnode(), testnode(), testnode(), testnode(),
-                testnode(), testnode()],
+            children: vec![testnode(), testnode(), testnode(), testnode(), testnode(), testnode(),
+                           testnode()],
         });
         let mut parent = InternalNode {
             keys: vec![18],
@@ -646,15 +658,15 @@ mod tests {
     fn collapse_children_left() {
         let left = Box::new(InternalNode {
             keys: vec![1, 2, 3],
-            children: vec![testnode(), testnode(), testnode(), testnode()]
+            children: vec![testnode(), testnode(), testnode(), testnode()],
         });
         let right = Box::new(InternalNode {
             keys: vec![70],
-            children: vec![testnode(), testnode()]
+            children: vec![testnode(), testnode()],
         });
         let mut parent = InternalNode {
             keys: vec![50],
-            children: vec![left, right]
+            children: vec![left, right],
         };
         parent.merge_collapse(1, Neighbor::Less);
         assert_eq!(parent.keys(), []);
@@ -665,15 +677,15 @@ mod tests {
     fn collapse_children_right() {
         let left = Box::new(InternalNode {
             keys: vec![1],
-            children: vec![testnode(), testnode()]
+            children: vec![testnode(), testnode()],
         });
         let right = Box::new(InternalNode {
             keys: vec![70, 80, 90],
-            children: vec![testnode(), testnode(), testnode(), testnode()]
+            children: vec![testnode(), testnode(), testnode(), testnode()],
         });
         let mut parent = InternalNode {
             keys: vec![50],
-            children: vec![left, right]
+            children: vec![left, right],
         };
         parent.merge_collapse(0, Neighbor::Greater);
         assert_eq!(parent.keys(), []);
