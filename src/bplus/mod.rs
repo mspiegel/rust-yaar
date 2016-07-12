@@ -39,6 +39,12 @@ enum InsertResult {
     None,
 }
 
+enum RemoveResult {
+    NoShrink(i32),
+    Shrink(i32),
+    None,
+}
+
 impl BTree {
     /// Makes a new empty BTree.
     ///
@@ -135,9 +141,9 @@ impl BTree {
                         let children = vec![self.root.take().unwrap(), child];
                         self.root = InternalNode::new_root(key, children);
                         None
-                    },
+                    }
                     InsertResult::Replace(value) => Some(value),
-                    InsertResult::None => None
+                    InsertResult::None => None,
                 }
             }
         }
@@ -149,14 +155,14 @@ impl BTree {
             Some(_) => {
                 let (prev, shrink) = {
                     let node = self.root.as_mut().unwrap();
-                    let (prev, _) = node.remove(key, self.min);
+                    let prev = node.remove(key, self.min);
                     (prev, node.keys().is_empty())
                 };
                 if shrink {
                     let mut node = self.root.take().unwrap();
                     self.root = node.shrink();
                 }
-                prev
+                prev.result()
             }
         }
     }
@@ -170,7 +176,7 @@ trait Node: fmt::Debug {
     fn get(&self, key: i32) -> Option<i32>;
     fn split(&mut self, max: usize) -> InsertResult;
     fn insert(&mut self, key: i32, value: i32, max: usize) -> InsertResult;
-    fn remove(&mut self, key: i32, min: usize) -> (Option<i32>, bool);
+    fn remove(&mut self, key: i32, min: usize) -> RemoveResult;
 
     fn child_redistribute(&mut self,
                           sibling: NodeWrap,
@@ -223,11 +229,11 @@ impl Node for LeafNode {
         };
         match prev {
             Some(value) => InsertResult::Replace(value),
-            None => self.split(max)
+            None => self.split(max),
         }
     }
 
-    fn remove(&mut self, key: i32, min: usize) -> (Option<i32>, bool) {
+    fn remove(&mut self, key: i32, min: usize) -> RemoveResult {
         let position = self.keys.binary_search(&key);
         let prev = match position {
             Ok(index) => {
@@ -236,7 +242,10 @@ impl Node for LeafNode {
             }
             Err(_) => None,
         };
-        (prev, self.needs_merge(min))
+        match prev {
+            Some(val) => RemoveResult::generate(self, min, val),
+            None => RemoveResult::None,
+        }
     }
 
     fn split(&mut self, max: usize) -> InsertResult {
@@ -245,10 +254,10 @@ impl Node for LeafNode {
             let newkeys = self.keys.split_off(partition);
             let newvals = self.vals.split_off(partition);
             InsertResult::Split(newkeys[0],
-                             Box::new(LeafNode {
-                                 keys: newkeys,
-                                 vals: newvals,
-                             }))
+                                Box::new(LeafNode {
+                                    keys: newkeys,
+                                    vals: newvals,
+                                }))
         } else {
             InsertResult::None
         }
@@ -314,19 +323,22 @@ impl Node for InternalNode {
                 self.keys.insert(index, key);
                 self.children.insert(index + 1, newchild);
                 self.split(max)
-            },
-            _ => recursive
+            }
+            _ => recursive,
         }
     }
 
-    fn remove(&mut self, key: i32, min: usize) -> (Option<i32>, bool) {
+    fn remove(&mut self, key: i32, min: usize) -> RemoveResult {
         let position = self.keys.binary_search(&key);
         let index = InternalNode::index(position);
-        let (prev, child_merge) = self.children[index].remove(key, min);
-        if child_merge {
-            self.merge_child(InternalNode::index(position), min);
+        let recursive = self.children[index].remove(key, min);
+        match recursive {
+            RemoveResult::Shrink(val) => {
+                self.merge_child(InternalNode::index(position), min);
+                RemoveResult::generate(self, min, val)
+            }
+            _ => recursive,
         }
-        (prev, self.needs_merge(min))
     }
 
     fn split(&mut self, max: usize) -> InsertResult {
@@ -336,10 +348,10 @@ impl Node for InternalNode {
             let newchildren = self.children.split_off(partition + 1);
             let newkey = newkeys.remove(0);
             InsertResult::Split(newkey,
-                             Box::new(InternalNode {
-                                 keys: newkeys,
-                                 children: newchildren,
-                             }))
+                                Box::new(InternalNode {
+                                    keys: newkeys,
+                                    children: newchildren,
+                                }))
         } else {
             InsertResult::None
         }
@@ -572,6 +584,24 @@ impl Node {
                 child.append(sibling);
                 mem::swap(child, sibling);
             }
+        }
+    }
+}
+
+impl RemoveResult {
+    fn result(&self) -> Option<i32> {
+        match *self {
+            RemoveResult::Shrink(val) |
+            RemoveResult::NoShrink(val) => Some(val),
+            RemoveResult::None => None,
+        }
+    }
+
+    fn generate(node: &Node, min: usize, val: i32) -> RemoveResult {
+        if node.needs_merge(min) {
+            RemoveResult::Shrink(val)
+        } else {
+            RemoveResult::NoShrink(val)
         }
     }
 }
