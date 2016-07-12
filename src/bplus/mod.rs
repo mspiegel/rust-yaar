@@ -180,7 +180,7 @@ trait Node: fmt::Debug {
 
 impl Node for LeafNode {
     fn keys(&self) -> &[i32] {
-        return &self.keys;
+        &self.keys
     }
 
     fn wrap(&mut self) -> NodeWrap {
@@ -277,7 +277,7 @@ impl Node for LeafNode {
 
 impl Node for InternalNode {
     fn keys(&self) -> &[i32] {
-        return &self.keys;
+        &self.keys
     }
 
     fn wrap(&mut self) -> NodeWrap {
