@@ -33,7 +33,11 @@ enum Neighbor {
     Greater,
 }
 
-struct KeyNodePair(i32, Box<Node>);
+enum InsertResult {
+    Replace(i32),
+    Split(i32, Box<Node>),
+    None,
+}
 
 impl BTree {
     /// Makes a new empty BTree.
@@ -125,13 +129,16 @@ impl BTree {
                 None
             }
             Some(_) => {
-                let (prev, split) = self.root.as_mut().unwrap().insert(key, value, self.max);
-                if split.is_some() {
-                    let KeyNodePair(key, child) = split.unwrap();
-                    let children = vec![self.root.take().unwrap(), child];
-                    self.root = InternalNode::new_root(key, children);
+                let result = self.root.as_mut().unwrap().insert(key, value, self.max);
+                match result {
+                    InsertResult::Split(key, child) => {
+                        let children = vec![self.root.take().unwrap(), child];
+                        self.root = InternalNode::new_root(key, children);
+                        None
+                    },
+                    InsertResult::Replace(value) => Some(value),
+                    InsertResult::None => None
                 }
-                prev
             }
         }
     }
@@ -161,8 +168,8 @@ trait Node: fmt::Debug {
     fn shrink(&mut self) -> Option<Box<Node>>;
 
     fn get(&self, key: i32) -> Option<i32>;
-    fn split(&mut self, max: usize) -> Option<KeyNodePair>;
-    fn insert(&mut self, key: i32, value: i32, max: usize) -> (Option<i32>, Option<KeyNodePair>);
+    fn split(&mut self, max: usize) -> InsertResult;
+    fn insert(&mut self, key: i32, value: i32, max: usize) -> InsertResult;
     fn remove(&mut self, key: i32, min: usize) -> (Option<i32>, bool);
 
     fn child_redistribute(&mut self,
@@ -199,7 +206,7 @@ impl Node for LeafNode {
         }
     }
 
-    fn insert(&mut self, key: i32, value: i32, max: usize) -> (Option<i32>, Option<KeyNodePair>) {
+    fn insert(&mut self, key: i32, value: i32, max: usize) -> InsertResult {
         let position = self.keys.binary_search(&key);
         let prev = match position {
             Ok(index) => Some(self.vals[index]),
@@ -214,7 +221,10 @@ impl Node for LeafNode {
                 self.vals.insert(index, value);
             }
         };
-        (prev, self.split(max))
+        match prev {
+            Some(value) => InsertResult::Replace(value),
+            None => self.split(max)
+        }
     }
 
     fn remove(&mut self, key: i32, min: usize) -> (Option<i32>, bool) {
@@ -229,18 +239,18 @@ impl Node for LeafNode {
         (prev, self.needs_merge(min))
     }
 
-    fn split(&mut self, max: usize) -> Option<KeyNodePair> {
+    fn split(&mut self, max: usize) -> InsertResult {
         if self.keys.len() > max {
             let partition = self.keys.len() / 2;
             let newkeys = self.keys.split_off(partition);
             let newvals = self.vals.split_off(partition);
-            Some(KeyNodePair(newkeys[0],
+            InsertResult::Split(newkeys[0],
                              Box::new(LeafNode {
                                  keys: newkeys,
                                  vals: newvals,
-                             })))
+                             }))
         } else {
-            None
+            InsertResult::None
         }
     }
 
@@ -294,20 +304,19 @@ impl Node for InternalNode {
         self.children[index].get(key)
     }
 
-    fn insert(&mut self, key: i32, value: i32, max: usize) -> (Option<i32>, Option<KeyNodePair>) {
+    fn insert(&mut self, key: i32, value: i32, max: usize) -> InsertResult {
         let position = self.keys.binary_search(&key);
-        let prev = {
-            let index = InternalNode::index(position);
-            let (prev, newchild) = self.children[index].insert(key, value, max);
-            if newchild.is_some() {
-                let KeyNodePair(key, newchild) = newchild.unwrap();
+        let index = InternalNode::index(position);
+        let recursive = self.children[index].insert(key, value, max);
+        match recursive {
+            InsertResult::Split(key, newchild) => {
                 let index = InternalNode::index(self.keys.binary_search(&key));
                 self.keys.insert(index, key);
                 self.children.insert(index + 1, newchild);
-            }
-            prev
-        };
-        (prev, self.split(max))
+                self.split(max)
+            },
+            _ => recursive
+        }
     }
 
     fn remove(&mut self, key: i32, min: usize) -> (Option<i32>, bool) {
@@ -320,19 +329,19 @@ impl Node for InternalNode {
         (prev, self.needs_merge(min))
     }
 
-    fn split(&mut self, max: usize) -> Option<KeyNodePair> {
+    fn split(&mut self, max: usize) -> InsertResult {
         if self.keys.len() > max {
             let partition = self.keys.len() / 2;
             let mut newkeys = self.keys.split_off(partition);
             let newchildren = self.children.split_off(partition + 1);
             let newkey = newkeys.remove(0);
-            Some(KeyNodePair(newkey,
+            InsertResult::Split(newkey,
                              Box::new(InternalNode {
                                  keys: newkeys,
                                  children: newchildren,
-                             })))
+                             }))
         } else {
-            None
+            InsertResult::None
         }
     }
 
