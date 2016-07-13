@@ -3,24 +3,24 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::mem;
 
-// A B+ tree node with height zero.
-// Leaf nodes store values.
+/// A B+ tree node with height zero.
+/// Leaf nodes store values.
 #[derive(Debug)]
 struct LeafNode {
     keys: Vec<i32>,
     vals: Vec<i32>,
 }
 
-// A B+ tree node with height greater than zero.
-// Internal nodes store children.
+/// A B+ tree node with height greater than zero.
+/// Internal nodes store children.
 #[derive(Debug)]
 struct InternalNode {
     keys: Vec<i32>,
     children: Vec<Box<Node>>,
 }
 
-// A B+ tree is defined by its root node and the
-// min and max bounds on node size.
+/// A B+ tree is defined by its root node and the
+/// min and max bounds on node size.
 #[derive(Debug)]
 pub struct BTree {
     root: Option<Box<Node>>,
@@ -34,24 +34,24 @@ enum Sibling {
     Greater,
 }
 
-// Outcomes of an insert operation.
+/// Outcomes of an insert operation.
 enum InsertResult {
-    // The pair (key, old) was replaced by (key, new).
-    // Node splitting cannot occur at value replacement.
+    /// The pair (key, old) was replaced by (key, new).
+    /// Node splitting cannot occur at value replacement.
     Replace(i32),
-    // Pair (key, new) insertion caused the node to split.
+    /// Pair (key, new) insertion caused the node to split.
     Split(i32, Box<Node>),
-    // Pair (key, new) insertion did not cause the node to split.
+    /// Pair (key, new) insertion did not cause the node to split.
     None,
 }
 
-// Outcomes of a remove operation.
+/// Outcomes of a remove operation.
 enum RemoveResult {
-    // The pair (key, val) was removed. The node is too small.
+    /// The pair (key, val) was removed. The node is too small.
     Shrink(i32),
-    // The pair (key, val) was removed. The node is not too small.
+    /// The pair (key, val) was removed. The node is not too small.
     NoShrink(i32),
-    // No pair was removed.
+    /// No pair was removed.
     None,
 }
 
@@ -196,62 +196,62 @@ impl BTree {
 }
 
 trait Node: fmt::Debug {
-    // Returns the value (if exists) corresponding to the key.
+    /// Returns the value (if exists) corresponding to the key.
     fn get(&self, key: i32) -> Option<i32>;
-    // Insert a (key, value) pair into the tree.
+    /// Insert a (key, value) pair into the tree.
     fn insert(&mut self, key: i32, value: i32, max: usize) -> InsertResult;
-    // Remove a (key, value) pair from the tree.
+    /// Remove a (key, value) pair from the tree.
     fn remove(&mut self, key: i32, min: usize) -> RemoveResult;
-    // Split the node if the number of keys is greater than max.
+    /// Split the node if the number of keys is greater than max.
     fn split(&mut self, max: usize) -> InsertResult;
 
-    // Move some elements from a sibling node onto this node.
-    // Return value is the new partition between this node and sibling node.
-    // Return value will replace an existing key in the parent.
+    /// Move some elements from a sibling node onto this node.
+    /// Return value is the new partition between this node and sibling node.
+    /// Return value will replace an existing key in the parent.
     fn shuffle(&mut self, sibling: &mut Box<Node>, pkey: i32, ord: Sibling, min: usize) -> i32;
-    // Move all elements from this node to a sibling. This node will be deleted.
+    /// Move all elements from this node to a sibling. This node will be deleted.
     fn collapse(&mut self, sibling: &mut Box<Node>, pkey: i32, ord: Sibling);
-    // Reduce the height of a tree. Used only by the root of the tree.
+    /// Reduce the height of a tree. Used only by the root of the tree.
     fn shrink(&mut self) -> Option<Box<Node>>;
 
-    // Accessor function for the keys of a node
+    /// Accessor function for the keys of a node
     fn keys(&self) -> &[i32];
 
-    // Returns true if the number of keys is less than min.
+    /// Returns true if the number of keys is less than min.
     fn needs_merge(&self, min: usize) -> bool {
         self.keys().len() < min
     }
 
-    // Assert this value is a leaf node or panic on internal node
+    /// Assert this value is a leaf node or panic on internal node
     fn as_leaf(&mut self) -> &mut LeafNode;
-    // Assert this value is an internal node or panic on leaf node
+    /// Assert this value is an internal node or panic on leaf node
     fn as_internal(&mut self) -> &mut InternalNode;
 }
 
 impl Node for LeafNode {
-    // Accessor function for the keys of a node
+    /// Accessor function for the keys of a node
     fn keys(&self) -> &[i32] {
         &self.keys
     }
 
-    // Assert this value is a leaf node or panic on internal node
+    /// Assert this value is a leaf node or panic on internal node
     fn as_leaf(&mut self) -> &mut LeafNode {
         self
     }
 
-    // Assert this value is an internal node or panic on leaf node
+    /// Assert this value is an internal node or panic on leaf node
     fn as_internal(&mut self) -> &mut InternalNode {
         panic!("attempt to convert leaf node into internal node");
     }
 
-    // Reduce the height of a tree. Used only by the root of the tree.
-    // Shrinking a leaf node generates an empty tree.
+    /// Reduce the height of a tree. Used only by the root of the tree.
+    /// Shrinking a leaf node generates an empty tree.
     fn shrink(&mut self) -> Option<Box<Node>> {
         debug_assert!(self.keys().is_empty());
         None
     }
 
-    // Returns the value (if exists) corresponding to the key.
+    /// Returns the value (if exists) corresponding to the key.
     fn get(&self, key: i32) -> Option<i32> {
         let position = self.keys.binary_search(&key);
         match position {
@@ -260,7 +260,7 @@ impl Node for LeafNode {
         }
     }
 
-    // Insert a (key, value) pair into the tree.
+    /// Insert a (key, value) pair into the tree.
     fn insert(&mut self, key: i32, value: i32, max: usize) -> InsertResult {
         let position = self.keys.binary_search(&key);
         let prev = match position {
@@ -282,7 +282,7 @@ impl Node for LeafNode {
         }
     }
 
-    // Remove a (key, value) pair from the tree.
+    /// Remove a (key, value) pair from the tree.
     fn remove(&mut self, key: i32, min: usize) -> RemoveResult {
         let position = self.keys.binary_search(&key);
         let prev = match position {
@@ -298,7 +298,7 @@ impl Node for LeafNode {
         }
     }
 
-    // Split the node if the number of keys is greater than max.
+    /// Split the node if the number of keys is greater than max.
     fn split(&mut self, max: usize) -> InsertResult {
         if self.keys.len() > max {
             let partition = self.keys.len() / 2;
@@ -314,9 +314,9 @@ impl Node for LeafNode {
         }
     }
 
-    // Move some elements from a sibling node onto this node.
-    // Return value is the new partition between this node and sibling node.
-    // Return value will replace an existing key in the parent.
+    /// Move some elements from a sibling node onto this node.
+    /// Return value is the new partition between this node and sibling node.
+    /// Return value will replace an existing key in the parent.
     #[allow(unused_variables)]
     fn shuffle(&mut self, sibling: &mut Box<Node>, pkey: i32, ord: Sibling, min: usize) -> i32 {
         let sibling = sibling.as_leaf();
@@ -327,7 +327,7 @@ impl Node for LeafNode {
         LeafNode::post_shuffle_get(&sibling.keys, ord)
     }
 
-    // Move all elements from this node to a sibling. This node will be deleted.
+    /// Move all elements from this node to a sibling. This node will be deleted.
     #[allow(unused_variables)]
     fn collapse(&mut self, sibling: &mut Box<Node>, pkey: i32, ord: Sibling) {
         let sibling = sibling.as_leaf();
@@ -337,36 +337,36 @@ impl Node for LeafNode {
 }
 
 impl Node for InternalNode {
-    // Accessor function for the keys of a node
+    /// Accessor function for the keys of a node
     fn keys(&self) -> &[i32] {
         &self.keys
     }
 
-    // Assert this value is a leaf node or panic on internal node
+    /// Assert this value is a leaf node or panic on internal node
     fn as_leaf(&mut self) -> &mut LeafNode {
         panic!("attempt to convert internal node into leaf node");
     }
 
-    // Assert this value is an internal node or panic on leaf node
+    /// Assert this value is an internal node or panic on leaf node
     fn as_internal(&mut self) -> &mut InternalNode {
         self
     }
 
-    // Reduce the height of a tree. Used only by the root of the tree.
-    // Shrinking an internal node replaces the node with its only child.
+    /// Reduce the height of a tree. Used only by the root of the tree.
+    /// Shrinking an internal node replaces the node with its only child.
     fn shrink(&mut self) -> Option<Box<Node>> {
         debug_assert!(self.keys().is_empty());
         Some(self.children.remove(0))
     }
 
-    // Returns the value (if exists) corresponding to the key.
+    /// Returns the value (if exists) corresponding to the key.
     fn get(&self, key: i32) -> Option<i32> {
         let position = self.keys.binary_search(&key);
         let index = InternalNode::index(position);
         self.children[index].get(key)
     }
 
-    // Insert a (key, value) pair into the tree.
+    /// Insert a (key, value) pair into the tree.
     fn insert(&mut self, key: i32, value: i32, max: usize) -> InsertResult {
         let position = self.keys.binary_search(&key);
         let index = InternalNode::index(position);
@@ -382,7 +382,7 @@ impl Node for InternalNode {
         }
     }
 
-    // Remove a (key, value) pair from the tree.
+    /// Remove a (key, value) pair from the tree.
     fn remove(&mut self, key: i32, min: usize) -> RemoveResult {
         let position = self.keys.binary_search(&key);
         let index = InternalNode::index(position);
@@ -396,7 +396,7 @@ impl Node for InternalNode {
         }
     }
 
-    // Split the node if the number of keys is greater than max.
+    /// Split the node if the number of keys is greater than max.
     fn split(&mut self, max: usize) -> InsertResult {
         if self.keys.len() > max {
             let partition = self.keys.len() / 2;
@@ -413,9 +413,9 @@ impl Node for InternalNode {
         }
     }
 
-    // Move some elements from a sibling node onto this node.
-    // Return value is the new partition between this node and sibling node.
-    // Return value will replace an existing key in the parent.
+    /// Move some elements from a sibling node onto this node.
+    /// Return value is the new partition between this node and sibling node.
+    /// Return value will replace an existing key in the parent.
     fn shuffle(&mut self, sibling: &mut Box<Node>, pkey: i32, ord: Sibling, min: usize) -> i32 {
         let sibling = sibling.as_internal();
         let sibling_len = sibling.keys.len();
@@ -426,7 +426,7 @@ impl Node for InternalNode {
         InternalNode::post_shuffle_take(&mut sibling.keys, ord)
     }
 
-    // Move all elements from this node to a sibling. This node will be deleted.
+    /// Move all elements from this node to a sibling. This node will be deleted.
     fn collapse(&mut self, sibling: &mut Box<Node>, pkey: i32, ord: Sibling) {
         let sibling = sibling.as_internal();
         Node::vec_collapse_with_middle(&mut sibling.keys, &mut self.keys, pkey, ord);
@@ -442,9 +442,9 @@ impl LeafNode {
         }))
     }
 
-    // Copy the new partition key from a child node. The key
-    // will be inserted into the parent of this node. The
-    // insertion is performed by InternalNode::set_parent_key().
+    /// Copy the new partition key from a child node. The key
+    /// will be inserted into the parent of this node. The
+    /// insertion is performed by InternalNode::set_parent_key().
     fn post_shuffle_get(sibling: &[i32], ord: Sibling) -> i32 {
         match ord {
             Sibling::Less => {
@@ -474,8 +474,8 @@ impl InternalNode {
         }
     }
 
-    // Given an index and the direction of a sibling return
-    // the index of the sibling.
+    /// Given an index and the direction of a sibling return
+    /// the index of the sibling.
     fn sibling(index: usize, ord: Sibling) -> usize {
         match ord {
             Sibling::Less => index - 1,
@@ -483,9 +483,9 @@ impl InternalNode {
         }
     }
 
-    // Inspect the left and right siblings of a node
-    // and return the larger sibling. Select the left
-    // sibling in case of a tie.
+    /// Inspect the left and right siblings of a node
+    /// and return the larger sibling. Select the left
+    /// sibling in case of a tie.
     fn merge_select_sibling(&self, index: usize) -> Sibling {
         let leftsize = if index > 0 {
             self.children[index - 1].keys().len()
@@ -506,9 +506,9 @@ impl InternalNode {
         }
     }
 
-    // The number of keys in a child node is less than
-    // the minimum. Either shuffle elements from a sibling
-    // node or collapse this node into a sibling.
+    /// The number of keys in a child node is less than
+    /// the minimum. Either shuffle elements from a sibling
+    /// node or collapse this node into a sibling.
     fn merge_child(&mut self, index: usize, min: usize) {
         let ord = self.merge_select_sibling(index);
         let sib_index = InternalNode::sibling(index, ord);
@@ -520,7 +520,7 @@ impl InternalNode {
         }
     }
 
-    // Move some elements from a sibling node onto this node.
+    /// Move some elements from a sibling node onto this node.
     fn merge_shuffle(&mut self, index: usize, ord: Sibling, min: usize) {
         let pkey = self.get_parent_key(index, ord);
         let ckey = {
@@ -530,7 +530,7 @@ impl InternalNode {
         self.set_parent_key(ckey, index, ord);
     }
 
-    // Move all elements from this node to a sibling. This node will be deleted.
+    /// Move all elements from this node to a sibling. This node will be deleted.
     fn merge_collapse(&mut self, index: usize, ord: Sibling) {
         let pkey = self.get_parent_key(index, ord);
         {
@@ -541,9 +541,9 @@ impl InternalNode {
         self.children.remove(index);
     }
 
-    // Get the partition key associated with a child node to be merged.
-    // The partition key is used when merging internal nodes and is
-    // unused when merging leaf nodes.
+    /// Get the partition key associated with a child node to be merged.
+    /// The partition key is used when merging internal nodes and is
+    /// unused when merging leaf nodes.
     fn get_parent_key(&self, index: usize, ord: Sibling) -> i32 {
         match ord {
             Sibling::Less => self.keys[index - 1],
@@ -551,9 +551,9 @@ impl InternalNode {
         }
     }
 
-    // Replace a key in the parent node at completion of a shuffle operation.
-    // This is the second half of a swap operation. The first half is
-    // performed by InternalNode::pre_shuffle().
+    /// Replace a key in the parent node at completion of a shuffle operation.
+    /// This is the second half of a swap operation. The first half is
+    /// performed by InternalNode::pre_shuffle().
     fn set_parent_key(&mut self, key: i32, index: usize, ord: Sibling) {
         match ord {
             Sibling::Less => {
@@ -565,9 +565,9 @@ impl InternalNode {
         }
     }
 
-    // Eliminate a key associated with a child node that is deleted.
-    // The child node is deleted when it has too few elements and
-    // its left and right siblings do not have extra elements to donate.
+    /// Eliminate a key associated with a child node that is deleted.
+    /// The child node is deleted when it has too few elements and
+    /// its left and right siblings do not have extra elements to donate.
     fn drop_parent_key(&mut self, index: usize, ord: Sibling) {
         match ord {
             Sibling::Less => {
@@ -579,8 +579,8 @@ impl InternalNode {
         }
     }
 
-    // Return a pair of references - the child node that is to
-    // be merged and the sibling of the child node.
+    /// Return a pair of references - the child node that is to
+    /// be merged and the sibling of the child node.
     fn partition(&mut self, index: usize, ord: Sibling) -> (&mut Box<Node>, &mut Box<Node>) {
         match ord {
             Sibling::Less => {
@@ -596,9 +596,9 @@ impl InternalNode {
         }
     }
 
-    // Copy a key from the parent node into a child node prior to shuffle operation.
-    // This is the first half of a swap operation. The second half is
-    // performed by InternalNode::set_parent_key().
+    /// Copy a key from the parent node into a child node prior to shuffle operation.
+    /// This is the first half of a swap operation. The second half is
+    /// performed by InternalNode::set_parent_key().
     fn pre_shuffle(sibling: &mut Vec<i32>, key: i32, ord: Sibling) {
         match ord {
             Sibling::Less => {
@@ -610,9 +610,9 @@ impl InternalNode {
         }
     }
 
-    // Extract the new partition key from a child node. The key
-    // will be inserted into the parent of this node. The
-    // insertion is performed by InternalNode::set_parent_key().
+    /// Extract the new partition key from a child node. The key
+    /// will be inserted into the parent of this node. The
+    /// insertion is performed by InternalNode::set_parent_key().
     fn post_shuffle_take(sibling: &mut Vec<i32>, ord: Sibling) -> i32 {
         match ord {
             Sibling::Less => sibling.pop().unwrap(),
@@ -677,7 +677,7 @@ impl Node {
 }
 
 impl RemoveResult {
-    // Extract the value stored by the RemoveResult
+    /// Extract the value stored by the RemoveResult
     fn result(&self) -> Option<i32> {
         match *self {
             RemoveResult::Shrink(val) |
@@ -686,7 +686,7 @@ impl RemoveResult {
         }
     }
 
-    // Generate a RemoveResult that stores a value
+    /// Generate a RemoveResult that stores a value
     fn generate(node: &Node, min: usize, val: i32) -> RemoveResult {
         if node.needs_merge(min) {
             RemoveResult::Shrink(val)
