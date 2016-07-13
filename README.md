@@ -18,7 +18,7 @@ Roadmap:
 - [ ] splay tree
 - [ ] binary heap
 - [ ] fibonacci heap
-- [ ] b-tree
+- [x] b+ tree
 - [ ] trie
 - [ ] radix tree
 - [ ] suffix tree
