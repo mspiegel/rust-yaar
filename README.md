@@ -14,11 +14,11 @@ Roadmap:
 - [ ] avl tree
 - [ ] weak avl tree
 - [ ] red-black tree
-- [x] left-leaning red-black tree
+- [x] [left-leaning red-black tree](src/llredblack/mod.rs)
 - [ ] splay tree
 - [ ] binary heap
 - [ ] fibonacci heap
-- [x] b+ tree
+- [x] [b+ tree](src/bplus/mod.rs)
 - [ ] trie
 - [ ] radix tree
 - [ ] suffix tree
