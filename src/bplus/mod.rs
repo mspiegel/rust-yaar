@@ -3,18 +3,24 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::mem;
 
+// A B+ tree node with height zero.
+// Leaf nodes store values.
 #[derive(Debug)]
 struct LeafNode {
     keys: Vec<i32>,
     vals: Vec<i32>,
 }
 
+// A B+ tree node with height greater than zero.
+// Internal nodes store children.
 #[derive(Debug)]
 struct InternalNode {
     keys: Vec<i32>,
     children: Vec<Box<Node>>,
 }
 
+// A wrapper for storing leaf and internal node variants.
+// See Node::shuffle() and Node::collapse().
 enum NodeWrap<'a> {
     Leaf(&'a mut LeafNode),
     Internal(&'a mut InternalNode),
@@ -33,15 +39,24 @@ enum Neighbor {
     Greater,
 }
 
+// Outcomes of an insert operation.
 enum InsertResult {
+    // The pair (key, old) was replaced by (key, new).
+    // Node splitting cannot occur at value replacement.
     Replace(i32),
+    // Pair (key, new) insertion caused the node to split.
     Split(i32, Box<Node>),
+    // Pair (key, new) insertion did not cause the node to split.
     None,
 }
 
+// Outcomes of a remove operation.
 enum RemoveResult {
-    NoShrink(i32),
+    // The pair (key, val) was removed. The node is too small.
     Shrink(i32),
+    // The pair (key, val) was removed. The node is not too small.
+    NoShrink(i32),
+    // No pair was removed.
     None,
 }
 
@@ -149,6 +164,21 @@ impl BTree {
         }
     }
 
+    /// Removes a key from the map, returning the value at the key if the key
+    /// was previously in the map.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use yaar::bplus::BTree;
+    ///
+    /// let mut map = BTree::new(16);
+    /// map.insert(1, 1);
+    /// assert_eq!(map.remove(1), Some(1));
+    /// assert_eq!(map.remove(1), None);
+    /// ```
     pub fn remove(&mut self, key: i32) -> Option<i32> {
         match self.root {
             None => None,
@@ -169,16 +199,26 @@ impl BTree {
 }
 
 trait Node: fmt::Debug {
+
+    // Accessor function for the keys of a node
     fn keys(&self) -> &[i32];
+
     fn wrap(&mut self) -> NodeWrap;
+    // Reduce the height of a tree. Used only by the root of the tree.
     fn shrink(&mut self) -> Option<Box<Node>>;
 
+    // Returns the value (if exists) corresponding to the key.
     fn get(&self, key: i32) -> Option<i32>;
+    // Split the node if the number of keys is greater than max.
     fn split(&mut self, max: usize) -> InsertResult;
+    // Insert a (key, value) pair into the tree.
     fn insert(&mut self, key: i32, value: i32, max: usize) -> InsertResult;
+    // Remove a (key, value) pair from the tree.
     fn remove(&mut self, key: i32, min: usize) -> RemoveResult;
 
+    // Move some elements from a sibling node onto this node.
     fn shuffle(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor, min: usize) -> i32;
+    // Move all elements from this node to a sibling. This node will be deleted.
     fn collapse(&mut self, sibling: NodeWrap, pkey: i32, ord: Neighbor);
 
     fn needs_merge(&self, min: usize) -> bool {
@@ -618,16 +658,16 @@ mod tests {
     }
 
     #[test]
-    fn redistribute() {
+    fn vec_shuffle() {
         let mut vec1 = vec![1, 2, 3];
         let mut vec2 = vec![4, 5, 6];
-        Node::redistribute(&mut vec1, &mut vec2, Neighbor::Less, 2);
+        Node::vec_shuffle(&mut vec1, &mut vec2, Neighbor::Less, 2);
         assert_eq!(vec1, vec![1]);
         assert_eq!(vec2, vec![2, 3, 4, 5, 6]);
 
         let mut vec3 = vec![1, 2, 3];
         let mut vec4 = vec![4, 5, 6];
-        Node::redistribute(&mut vec4, &mut vec3, Neighbor::Greater, 2);
+        Node::vec_shuffle(&mut vec4, &mut vec3, Neighbor::Greater, 2);
         assert_eq!(vec3, vec![1, 2, 3, 4, 5]);
         assert_eq!(vec4, vec![6]);
     }
