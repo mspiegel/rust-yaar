@@ -139,23 +139,21 @@ impl BTree {
     /// assert_eq!(map.insert(37, 3), Some(2));
     /// ```
     pub fn insert(&mut self, key: i32, value: i32) -> Option<i32> {
-        match self.root {
-            None => {
-                self.root = LeafNode::new_leaf(key, value);
-                None
-            }
-            Some(_) => {
-                let result = self.root.as_mut().unwrap().insert(key, value, self.max);
-                match result {
-                    // grow the height of the tree if necessary
-                    InsertResult::Split(key, child) => {
-                        let children = vec![self.root.take().unwrap(), child];
-                        self.root = InternalNode::new_root(key, children);
-                        None
-                    }
-                    InsertResult::Replace(value) => Some(value),
-                    InsertResult::None => None,
+        if self.root.is_none() {
+            self.root = LeafNode::new_leaf(key, value);
+            None
+        } else {
+            let max = self.max;
+            let result = self.mut_root().insert(key, value, max);
+            match result {
+                // grow the height of the tree if necessary
+                InsertResult::Split(key, child) => {
+                    let children = vec![self.take_root(), child];
+                    self.root = InternalNode::new_root(key, children);
+                    None
                 }
+                InsertResult::Replace(value) => Some(value),
+                InsertResult::None => None,
             }
         }
     }
@@ -179,19 +177,27 @@ impl BTree {
         match self.root {
             None => None,
             Some(_) => {
-                let (prev, shrink) = {
-                    let node = self.root.as_mut().unwrap();
-                    let prev = node.remove(key, self.min);
-                    (prev, node.keys().is_empty())
-                };
-                if shrink {
+                let min = self.min;
+                let prev = self.mut_root().remove(key, min);
+                if self.ref_root().keys().is_empty() {
                     // shrink the height of the tree if necessary
-                    let mut node = self.root.take().unwrap();
-                    self.root = node.shrink();
+                    self.root = self.take_root().shrink();
                 }
                 prev.result()
             }
         }
+    }
+
+    fn ref_root(&self) -> &Box<Node> {
+        self.root.as_ref().unwrap()
+    }
+
+    fn mut_root(&mut self) -> &mut Box<Node> {
+        self.root.as_mut().unwrap()
+    }
+
+    fn take_root(&mut self) -> Box<Node> {
+        self.root.take().unwrap()
     }
 }
 
