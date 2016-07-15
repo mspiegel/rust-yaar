@@ -15,9 +15,11 @@ Roadmap:
 - [ ] weak avl tree
 - [ ] red-black tree
 - [x] [left-leaning red-black tree](src/llredblack/mod.rs)
+- [ ] BB-alpha tree
 - [ ] splay tree
 - [ ] binary heap
 - [ ] fibonacci heap
+- [x] [b tree](src/b/mod.rs)
 - [x] [b+ tree](src/bplus/mod.rs)
 - [ ] trie
 - [ ] radix tree
