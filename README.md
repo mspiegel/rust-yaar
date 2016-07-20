@@ -17,7 +17,7 @@ Roadmap:
 - [x] [left-leaning red-black tree](src/llredblack/mod.rs)
 - [ ] BB-alpha tree
 - [ ] splay tree
-- [ ] binary heap
+- [x] [binary heap](src/minheap/mod.rs) (array-based)
 - [ ] fibonacci heap
 - [x] [b tree](src/b/mod.rs)
 - [x] [b+ tree](src/bplus/mod.rs)
