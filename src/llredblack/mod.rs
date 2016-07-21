@@ -213,8 +213,8 @@ impl RedBlackTree {
     }
 
     /// Returns true if he path from the root to the
-    // farthest leaf is no more than twice as long as
-    // the path from the root to the nearest leaf.
+    /// farthest leaf is no more than twice as long as
+    /// the path from the root to the nearest leaf.
     fn is_balanced(&self) -> bool {
         let mut black = 0;
         let mut next = &self.root;
@@ -234,7 +234,7 @@ impl RedBlackTree {
 
     /// Applies all the invariant tests on the
     /// binary search tree. Tests are only
-    // applied in the debug! context.
+    /// applied in the debug! context.
     fn check(&self) {
         debug_assert!(self.is_bst(), "Not a binary search tree");
         debug_assert!(self.is_23(), "Not a 2-3 tree");
@@ -372,13 +372,13 @@ trait OptionBoxNode {
     fn is_red(&self) -> bool;
     fn color(&self) -> Color;
     fn insert(&mut self, key: i32, val: i32) -> Option<i32>;
+    fn remove(&mut self, key: i32);
+    fn remove_min(&mut self) -> Option<(i32, i32)>;
     fn reference(&self) -> &Box<Node>;
     fn mutate(&mut self) -> &mut Box<Node>;
     fn left(&self) -> &Option<Box<Node>>;
     fn right(&self) -> &Option<Box<Node>>;
     fn set_color(&mut self, color: Color);
-    fn remove_min(&mut self) -> Option<(i32, i32)>;
-    fn remove(&mut self, key: i32);
     fn is_bst(&self, min: Option<i32>, max: Option<i32>) -> bool;
     fn is_23(&self, root: bool) -> bool;
     fn is_balanced(&self, black: i32) -> bool;

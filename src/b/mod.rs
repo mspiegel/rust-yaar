@@ -492,8 +492,8 @@ impl Node {
         self.mut_children().remove(index);
     }
 
-    /// Get the partition key associated with a child node to be merged.
-    /// The partition key is used when merging internal nodes and is
+    /// Get the partition pair associated with a child node to be merged.
+    /// The partition pair is used when merging internal nodes and is
     /// unused when merging leaf nodes.
     fn get_parent_pair(&self, index: usize, ord: Sibling) -> (i32, i32) {
         match ord {
@@ -502,7 +502,7 @@ impl Node {
         }
     }
 
-    /// Replace a key in the parent node at completion of a shuffle operation.
+    /// Replace a pair in the parent node at completion of a shuffle operation.
     /// This is the second half of a swap operation. The first half is
     /// performed by InternalNode::pre_shuffle().
     fn set_parent_pair(&mut self, pair: (i32, i32), index: usize, ord: Sibling) {
@@ -518,7 +518,7 @@ impl Node {
         }
     }
 
-    /// Eliminate a key associated with a child node that is deleted.
+    /// Eliminate a pair associated with a child node that is deleted.
     /// The child node is deleted when it has too few elements and
     /// its left and right siblings do not have extra elements to donate.
     fn drop_parent_pair(&mut self, index: usize, ord: Sibling) {
@@ -551,7 +551,7 @@ impl Node {
         }
     }
 
-    /// Extract the new partition key from a child node. The key
+    /// Extract the new partition pair from a child node. The pair
     /// will be inserted into the parent of this node. The
     /// insertion is performed by InternalNode::set_parent_pair().
     fn post_shuffle_take(&mut self, ord: Sibling) -> (i32, i32) {
@@ -561,7 +561,7 @@ impl Node {
         }
     }
 
-    /// Copy a key from the parent node into a child node prior to shuffle operation.
+    /// Copy a value from the parent node into a child node prior to shuffle operation.
     /// This is the first half of a swap operation. The second half is
     /// performed by InternalNode::set_parent_pair().
     fn pre_shuffle(sibling: &mut Vec<i32>, value: i32, ord: Sibling) {

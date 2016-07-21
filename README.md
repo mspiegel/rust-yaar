@@ -19,6 +19,7 @@ Roadmap:
 - [ ] splay tree
 - [x] [binary heap](src/minheap/mod.rs) (array-based)
 - [ ] fibonacci heap
+- [x] [treap](src/treap/mod.rs)
 - [x] [b tree](src/b/mod.rs)
 - [x] [b+ tree](src/bplus/mod.rs)
 - [ ] trie
