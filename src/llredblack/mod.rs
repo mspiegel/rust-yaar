@@ -217,6 +217,12 @@ impl RedBlackTree {
         }
     }
 
+    /// Returns a read-only iterator that
+    /// does not consume the contents of the tree.
+    pub fn iter(&self) -> Iter {
+        Iter::new(self)
+    }
+
     /// Returns true if the tree satisfies the ordered
     // propery of a binary search tree.
     fn is_bst(&self) -> bool {
@@ -256,16 +262,14 @@ impl RedBlackTree {
         debug_assert!(self.is_23(), "Not a 2-3 tree");
         debug_assert!(self.is_balanced(), "Not balanced");
     }
-
-    pub fn iter(&self) -> Iter {
-        Iter::new(self)
-    }
 }
 
 impl IntoIterator for RedBlackTree {
     type Item = (i32, i32);
     type IntoIter = IntoIter;
 
+    /// Returns a read-only iterator that
+    /// consumes the contents of the tree.
     fn into_iter(self) -> IntoIter {
         IntoIter::new(self)
     }
@@ -576,6 +580,8 @@ impl IntoIter {
         }
     }
 
+    // Initialize the iterator by pushing the left descendants
+    // of the root node onto the stack.
     fn initialize(&mut self, mut tree: RedBlackTree) {
         if tree.root.is_some() {
             let node = tree.root.take().unwrap();
@@ -584,9 +590,14 @@ impl IntoIter {
     }
 }
 
+// Preorder traversal: traverse the left subtree of a node,
+// then the node, and then the right subtree of a node.
 impl Iterator for IntoIter {
     type Item = (i32, i32);
 
+    // Pop the current top of the stack. The left
+    // subtree of the top of the stack has been traversed,
+    // so push the right subtree onto the stack.
     fn next(&mut self) -> Option<Self::Item> {
         let node = self.stack.pop();
         node.map(|node| {
@@ -623,6 +634,8 @@ impl<'a> Iter<'a> {
         }
     }
 
+    // Initialize the iterator by pushing the left descendants
+    // of the root node onto the stack.
     fn initialize(&mut self, tree: &'a RedBlackTree) {
         if tree.root.is_some() {
             let node = tree.root.as_ref().unwrap();
@@ -631,9 +644,15 @@ impl<'a> Iter<'a> {
     }
 }
 
+
+// Preorder traversal: traverse the left subtree of a node,
+// then the node, and then the right subtree of a node.
 impl<'a> Iterator for Iter<'a> {
     type Item = (i32, i32);
 
+    // Pop the current top of the stack. The left
+    // subtree of the top of the stack has been traversed,
+    // so push the right subtree onto the stack.
     fn next(&mut self) -> Option<Self::Item> {
         let node = self.stack.pop();
         node.map(|node| {
