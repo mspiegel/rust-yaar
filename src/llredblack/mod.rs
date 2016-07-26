@@ -4,6 +4,9 @@
 //! and https://github.com/rcatolino/rbtree-rust.
 //! Debug assertions borrow heavily from the implementations
 //! at http://algs4.cs.princeton.edu/33balanced.
+//!
+//! Thank you to http://cglab.ca/~abeinges/blah/too-many-lists/book/
+//! which was a great help when implementing the iterator types.
 
 // I have spent a lot of hours trying all possible ways to
 // implement this data structure. Most of the attemps
@@ -29,8 +32,9 @@
 // much easier to write.
 
 // Also the implementation became much easier after I
-// saw from rcatolino that some methods should be defined
-// on a trait that wraps Option<Box<Node>>.
+// saw from https://github.com/rcatolino/rbtree-rust
+// that some methods should be defined on a trait that
+// wraps Option<Box<Node>>.
 
 use std::cmp::Ordering;
 use std::mem;
@@ -53,6 +57,18 @@ struct Node {
     color: Color,
     left: Option<Box<Node>>,
     right: Option<Box<Node>>,
+}
+
+// Destructive iterator
+#[derive(Debug)]
+pub struct IntoIter {
+    stack: Vec<Box<Node>>,
+}
+
+// Non-destructive iterator
+#[derive(Debug)]
+pub struct Iter<'a> {
+    stack: Vec<&'a Node>,
 }
 
 impl RedBlackTree {
@@ -239,6 +255,19 @@ impl RedBlackTree {
         debug_assert!(self.is_bst(), "Not a binary search tree");
         debug_assert!(self.is_23(), "Not a 2-3 tree");
         debug_assert!(self.is_balanced(), "Not balanced");
+    }
+
+    pub fn iter(&self) -> Iter {
+        Iter::new(self)
+    }
+}
+
+impl IntoIterator for RedBlackTree {
+    type Item = (i32, i32);
+    type IntoIter = IntoIter;
+
+    fn into_iter(self) -> IntoIter {
+        IntoIter::new(self)
     }
 }
 
@@ -521,6 +550,100 @@ impl OptionBoxNode for Option<Box<Node>> {
     }
 }
 
+impl IntoIter {
+    fn new(tree: RedBlackTree) -> IntoIter {
+        let mut iterator = IntoIter { stack: vec![] };
+        iterator.initialize(tree);
+        iterator
+    }
+
+    fn right_children(&mut self, mut node: Box<Node>) {
+        let right = node.right.take();
+        if right.is_some() {
+            self.left_children(right.unwrap());
+        }
+    }
+
+    fn left_children(&mut self, mut node: Box<Node>) {
+        loop {
+            let left = node.left.take();
+            self.stack.push(node);
+            if left.is_some() {
+                node = left.unwrap();
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn initialize(&mut self, mut tree: RedBlackTree) {
+        if tree.root.is_some() {
+            let node = tree.root.take().unwrap();
+            self.left_children(node);
+        }
+    }
+}
+
+impl Iterator for IntoIter {
+    type Item = (i32, i32);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let node = self.stack.pop();
+        node.map(|node| {
+            let result = (node.key, node.val);
+            self.right_children(node);
+            result
+        })
+    }
+}
+
+impl<'a> Iter<'a> {
+    fn new(tree: &'a RedBlackTree) -> Iter<'a> {
+        let mut iterator = Iter { stack: vec![] };
+        iterator.initialize(tree);
+        iterator
+    }
+
+    fn right_children(&mut self, node: &'a Node) {
+        let right = node.right.as_ref();
+        if right.is_some() {
+            self.left_children(right.unwrap());
+        }
+    }
+
+    fn left_children(&mut self, mut node: &'a Node) {
+        loop {
+            let left = node.left.as_ref();
+            self.stack.push(node);
+            if left.is_some() {
+                node = left.unwrap();
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn initialize(&mut self, tree: &'a RedBlackTree) {
+        if tree.root.is_some() {
+            let node = tree.root.as_ref().unwrap();
+            self.left_children(node);
+        }
+    }
+}
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = (i32, i32);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let node = self.stack.pop();
+        node.map(|node| {
+            let result = (node.key, node.val);
+            self.right_children(node);
+            result
+        })
+    }
+}
+
 impl Color {
     fn flip(&mut self) {
         match *self {
@@ -580,6 +703,40 @@ mod tests {
         for i in 0..256 {
             assert_eq!(tree.remove(i), Some(i));
             assert_eq!(tree.remove(i), None);
+        }
+    }
+
+    #[test]
+    fn into_iter() {
+        let empty = RedBlackTree::new();
+        assert_eq!(None, empty.into_iter().next());
+
+        let mut tree = RedBlackTree::new();
+        for i in 0..256 {
+            assert_eq!(tree.insert(i, i), None);
+        }
+        let mut iter = tree.into_iter();
+        for i in 0..256 {
+            assert_eq!(Some((i, i)), iter.next());
+        }
+        assert_eq!(None, iter.next());
+    }
+
+    #[test]
+    fn iter() {
+        let mut tree = RedBlackTree::new();
+        for i in 0..256 {
+            assert_eq!(tree.insert(i, i), None);
+        }
+        {
+            let mut iter = tree.iter();
+            for i in 0..256 {
+                assert_eq!(Some((i, i)), iter.next());
+            }
+            assert_eq!(None, iter.next());
+        }
+        for i in 0..256 {
+            assert_eq!(tree.get(i), Some(i));
         }
     }
 }

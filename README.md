@@ -25,5 +25,6 @@ Roadmap:
 - [ ] trie
 - [ ] radix tree
 - [ ] suffix tree
+- [ ] fenwick tree
 - [ ] kd-tree
 - [ ] octree
