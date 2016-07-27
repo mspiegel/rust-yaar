@@ -19,11 +19,8 @@ impl<'a> Fenwick<'a> {
     }
 
     fn bounds_check(index: usize, size: usize) {
-        if index == 0 {
-            panic!("index must be > 0 and <= size");
-        }
-        if index > size {
-            panic!("index must be > 0 and <= size");
+        if index >= size {
+            panic!("index must less than size");
         }
     }
 
@@ -31,6 +28,7 @@ impl<'a> Fenwick<'a> {
         let size = self.vals.len();
         let op = self.operator;
         Fenwick::bounds_check(index, size);
+        index += 1;
         while index <= size {
             self.vals[index] = op(self.vals[index], value);
             index += index & (!index + 1);
@@ -41,6 +39,7 @@ impl<'a> Fenwick<'a> {
         let mut res = self.identity;
         let op = self.operator;
         Fenwick::bounds_check(index, self.vals.len());
+        index += 1;
         while index > 0 {
             res = op(res, self.vals[index]);
             index -= index & (!index + 1);
@@ -64,11 +63,11 @@ mod tests {
     fn insert() {
         let add = &|a, b| a + b;
         let mut tree = Fenwick::new(10, 0, add);
-        for i in 1..11 {
+        for i in 0..10 {
             tree.update(i as usize, i);
         }
         let mut sum = 0;
-        for i in 1..11 {
+        for i in 0..10 {
             sum += i;
             assert_eq!(sum, tree.get(i as usize));
         }
