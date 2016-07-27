@@ -25,6 +25,6 @@ Roadmap:
 - [ ] trie
 - [ ] radix tree
 - [ ] suffix tree
-- [x] fenwick tree(src/fenwick/mod.rs)
+- [x] [fenwick tree](src/fenwick/mod.rs)
 - [ ] kd-tree
 - [ ] octree
