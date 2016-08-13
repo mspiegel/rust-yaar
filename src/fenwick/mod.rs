@@ -1,3 +1,18 @@
+//! A Fenwick tree or binary indexed tree is a data structure
+//! that can efficiently update elements and calculate prefix scans
+//! in a table of numbers. This structure was proposed by Peter
+//! Fenwick in 1994 to improve the efficiency of arithmetic coding
+//! compression algorithms.
+//!
+//! There is a trade-off between the efficiency of element update
+//! and prefix scan calculation. In a flat array of
+//! n numbers, calculating prefix sum requires O(n) time,
+//! while in an array of prefix sums, updating elements requires
+//! O(n) time. Fenwick trees allow both operations to be performed in
+//! O(log n) time. This is achieved by representing the numbers as
+//! a tree, where the value of each node is the sum of the numbers
+//! in that subtree. The tree structure allows operations to be
+//! performed using only O(log n) node accesses.
 use std::iter;
 use std::iter::FromIterator;
 
