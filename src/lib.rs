@@ -1,5 +1,6 @@
 extern crate rand;
 
+pub mod avl;
 pub mod b;
 pub mod bplus;
 pub mod fenwick;

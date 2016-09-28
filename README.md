@@ -11,7 +11,7 @@ Code is formatted using [rustfmt](https://github.com/rust-lang-nursery/rustfmt).
 Code is linted using [clippy](https://github.com/Manishearth/rust-clippy).
 
 Roadmap:
-- [ ] avl tree
+- [x] [avl tree](src/avl/mod.rs)
 - [ ] weak avl tree
 - [ ] red-black tree
 - [x] [left-leaning red-black tree](src/llredblack/mod.rs)
